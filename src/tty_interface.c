@@ -105,6 +105,17 @@ static void inner_colors(tty_t *tty, const options_t *opt) {
 		fputs(opt->color_sgr_fg, tty->fout);
 }
 
+/* One space between left border and inner column; inner_colors first so bg fills padding. */
+static void border_inner_pad(tty_t *tty, const options_t *opt) {
+	if (!has_ui_border(tty, opt))
+		return;
+	tty_setnowrap(tty);
+	tty_setcol(tty, 1);
+	inner_colors(tty, opt);
+	fputc(' ', tty->fout);
+	tty_setcol(tty, 2);
+}
+
 static void draw_border_horizontal(tty_t *tty, const options_t *opt, int bottom) {
 	size_t w = tty_getwidth(tty);
 	tty_setnormal(tty);
@@ -113,6 +124,8 @@ static void draw_border_horizontal(tty_t *tty, const options_t *opt, int bottom)
 		return;
 	if (w < 2)
 		return;
+	if (opt->color_sgr_bg[0])
+		fputs(opt->color_sgr_bg, tty->fout);
 	fputs(opt->color_sgr_border, tty->fout);
 	fputs(bottom ? g_border_bl : g_border_tl, tty->fout);
 	for (size_t i = 0; i + 2 < w; i++)
@@ -125,9 +138,11 @@ static void border_left(tty_t *tty, const options_t *opt) {
 	if (!has_ui_border(tty, opt))
 		return;
 	tty_setcol(tty, 0);
+	tty_setnormal(tty);
+	if (opt->color_sgr_bg[0])
+		fputs(opt->color_sgr_bg, tty->fout);
 	fputs(opt->color_sgr_border, tty->fout);
 	fputs(g_border_v, tty->fout);
-	tty_setnormal(tty);
 }
 
 static void border_right(tty_t *tty, const options_t *opt) {
@@ -137,15 +152,15 @@ static void border_right(tty_t *tty, const options_t *opt) {
 	if (w < 5)
 		return;
 	tty_setcol(tty, (int)w - 2);
-	if (opt->color_sgr_bg[0] || opt->color_sgr_fg[0]) {
-		tty_setnormal(tty);
-		if (opt->color_sgr_bg[0])
-			fputs(opt->color_sgr_bg, tty->fout);
-		if (opt->color_sgr_fg[0])
-			fputs(opt->color_sgr_fg, tty->fout);
-	}
+	tty_setnormal(tty);
+	if (opt->color_sgr_bg[0])
+		fputs(opt->color_sgr_bg, tty->fout);
+	if (opt->color_sgr_fg[0])
+		fputs(opt->color_sgr_fg, tty->fout);
 	fputc(' ', tty->fout);
 	tty_setcol(tty, (int)w - 1);
+	if (opt->color_sgr_bg[0])
+		fputs(opt->color_sgr_bg, tty->fout);
 	fputs(opt->color_sgr_border, tty->fout);
 	fputs(g_border_v, tty->fout);
 	tty_setnormal(tty);
@@ -289,13 +304,10 @@ static void draw(tty_interface_t *state) {
 
 	tty_setnormal(tty);
 	border_left(tty, options);
-	if (bordered) {
-		tty_setnowrap(tty);
-		tty_setcol(tty, 1);
-		fputc(' ', tty->fout);
-		tty_setcol(tty, 2);
-	}
-	inner_colors(tty, options);
+	if (bordered)
+		border_inner_pad(tty, options);
+	else
+		inner_colors(tty, options);
 	tty_printf(tty, "%s%s", options->prompt, state->search);
 	if (options->prompt_results) {
 		inner_colors(tty, options);
@@ -310,13 +322,10 @@ static void draw(tty_interface_t *state) {
 		tty_printf(tty, "\n");
 		tty_setnormal(tty);
 		border_left(tty, options);
-		if (bordered) {
-			tty_setnowrap(tty);
-			tty_setcol(tty, 1);
-			fputc(' ', tty->fout);
-			tty_setcol(tty, 2);
-		}
-		inner_colors(tty, options);
+		if (bordered)
+			border_inner_pad(tty, options);
+		else
+			inner_colors(tty, options);
 		tty_printf(tty, "%s", options->header);
 		tty_clearline(tty);
 		border_right(tty, options);
@@ -328,13 +337,10 @@ static void draw(tty_interface_t *state) {
 		tty_printf(tty, "\n");
 		tty_setnormal(tty);
 		border_left(tty, options);
-		if (bordered) {
-			tty_setnowrap(tty);
-			tty_setcol(tty, 1);
-			fputc(' ', tty->fout);
-			tty_setcol(tty, 2);
-		}
-		inner_colors(tty, options);
+		if (bordered)
+			border_inner_pad(tty, options);
+		else
+			inner_colors(tty, options);
 		tty_printf(tty, "[%lu/%lu]", (unsigned long)choices->available, (unsigned long)choices->size);
 		tty_clearline(tty);
 		border_right(tty, options);
@@ -346,13 +352,10 @@ static void draw(tty_interface_t *state) {
 		tty_printf(tty, "\n");
 		tty_setnormal(tty);
 		border_left(tty, options);
-		if (bordered) {
-			tty_setnowrap(tty);
-			tty_setcol(tty, 1);
-			fputc(' ', tty->fout);
-			tty_setcol(tty, 2);
-		}
-		inner_colors(tty, options);
+		if (bordered)
+			border_inner_pad(tty, options);
+		else
+			inner_colors(tty, options);
 		tty_clearline(tty);
 		const char *choice = choices_get(choices, i);
 		if (choice)
@@ -379,13 +382,10 @@ static void draw(tty_interface_t *state) {
 	tty_setnormal(tty);
 	tty_setcol(tty, 0);
 	border_left(tty, options);
-	if (bordered) {
-		tty_setnowrap(tty);
-		tty_setcol(tty, 1);
-		fputc(' ', tty->fout);
-		tty_setcol(tty, 2);
-	}
-	inner_colors(tty, options);
+	if (bordered)
+		border_inner_pad(tty, options);
+	else
+		inner_colors(tty, options);
 	fputs(options->prompt, tty->fout);
 	if (options->prompt_results) {
 		fputs(state->search, tty->fout);
