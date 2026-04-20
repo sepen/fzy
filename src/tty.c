@@ -133,10 +133,17 @@ static void tty_sgr(tty_t *tty, int code) {
 }
 
 void tty_setfg(tty_t *tty, int fg) {
-	if (tty->fgcolor != fg) {
-		tty_sgr(tty, 30 + fg);
-		tty->fgcolor = fg;
+	if (tty->fgcolor >= 0 && tty->fgcolor == fg)
+		return;
+	{
+		int code = (fg == TTY_COLOR_NORMAL) ? 39 : (30 + fg);
+		tty_sgr(tty, code);
 	}
+	tty->fgcolor = fg;
+}
+
+void tty_invalidate_fg(tty_t *tty) {
+	tty->fgcolor = -1;
 }
 
 void tty_setinvert(tty_t *tty) {

@@ -97,7 +97,15 @@ static int has_ui_border(const tty_t *tty, const options_t *opt) {
 	return opt->border && tty_getwidth((tty_t *)tty) >= 5;
 }
 
-static void draw_border_horizontal(tty_t *tty, int bottom) {
+static void inner_colors(tty_t *tty, const options_t *opt) {
+	tty_setnormal(tty);
+	if (opt->color_sgr_bg[0])
+		fputs(opt->color_sgr_bg, tty->fout);
+	if (opt->color_sgr_fg[0])
+		fputs(opt->color_sgr_fg, tty->fout);
+}
+
+static void draw_border_horizontal(tty_t *tty, const options_t *opt, int bottom) {
 	size_t w = tty_getwidth(tty);
 	tty_setnormal(tty);
 	tty_setcol(tty, 0);
@@ -105,17 +113,21 @@ static void draw_border_horizontal(tty_t *tty, int bottom) {
 		return;
 	if (w < 2)
 		return;
+	fputs(opt->color_sgr_border, tty->fout);
 	fputs(bottom ? g_border_bl : g_border_tl, tty->fout);
 	for (size_t i = 0; i + 2 < w; i++)
 		fputs(g_border_h, tty->fout);
 	fputs(bottom ? g_border_br : g_border_tr, tty->fout);
+	tty_setnormal(tty);
 }
 
 static void border_left(tty_t *tty, const options_t *opt) {
 	if (!has_ui_border(tty, opt))
 		return;
 	tty_setcol(tty, 0);
+	fputs(opt->color_sgr_border, tty->fout);
 	fputs(g_border_v, tty->fout);
+	tty_setnormal(tty);
 }
 
 static void border_right(tty_t *tty, const options_t *opt) {
@@ -125,9 +137,18 @@ static void border_right(tty_t *tty, const options_t *opt) {
 	if (w < 5)
 		return;
 	tty_setcol(tty, (int)w - 2);
+	if (opt->color_sgr_bg[0] || opt->color_sgr_fg[0]) {
+		tty_setnormal(tty);
+		if (opt->color_sgr_bg[0])
+			fputs(opt->color_sgr_bg, tty->fout);
+		if (opt->color_sgr_fg[0])
+			fputs(opt->color_sgr_fg, tty->fout);
+	}
 	fputc(' ', tty->fout);
 	tty_setcol(tty, (int)w - 1);
+	fputs(opt->color_sgr_border, tty->fout);
 	fputs(g_border_v, tty->fout);
+	tty_setnormal(tty);
 }
 
 static void clear(tty_interface_t *state) {
@@ -193,7 +214,12 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected,
 			tty_setfg(tty, TTY_COLOR_HIGHLIGHT);
 			p++;
 		} else {
-			tty_setfg(tty, TTY_COLOR_NORMAL);
+			if (options->color_sgr_fg[0]) {
+				fputs(options->color_sgr_fg, tty->fout);
+				tty_invalidate_fg(tty);
+			} else {
+				tty_setfg(tty, TTY_COLOR_NORMAL);
+			}
 		}
 		if (choice[i] == '\n') {
 			tty_putc(tty, ' ');
@@ -205,6 +231,10 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected,
 	}
 	tty_setwrap(tty);
 	tty_setnormal(tty);
+	if (options->color_sgr_bg[0])
+		fputs(options->color_sgr_bg, tty->fout);
+	if (options->color_sgr_fg[0])
+		fputs(options->color_sgr_fg, tty->fout);
 }
 
 static void draw(tty_interface_t *state) {
@@ -253,7 +283,7 @@ static void draw(tty_interface_t *state) {
 	if (bordered) {
 		if (!state->border_first_draw)
 			tty_moveup(tty, 1);
-		draw_border_horizontal(tty, 0);
+		draw_border_horizontal(tty, options, 0);
 		tty_printf(tty, "\n");
 	}
 
@@ -265,9 +295,10 @@ static void draw(tty_interface_t *state) {
 		fputc(' ', tty->fout);
 		tty_setcol(tty, 2);
 	}
+	inner_colors(tty, options);
 	tty_printf(tty, "%s%s", options->prompt, state->search);
 	if (options->prompt_results) {
-		tty_setnormal(tty);
+		inner_colors(tty, options);
 		print_prompt_results_suffix(tty, options, choices);
 	}
 	tty_clearline(tty);
@@ -285,6 +316,7 @@ static void draw(tty_interface_t *state) {
 			fputc(' ', tty->fout);
 			tty_setcol(tty, 2);
 		}
+		inner_colors(tty, options);
 		tty_printf(tty, "%s", options->header);
 		tty_clearline(tty);
 		border_right(tty, options);
@@ -302,6 +334,7 @@ static void draw(tty_interface_t *state) {
 			fputc(' ', tty->fout);
 			tty_setcol(tty, 2);
 		}
+		inner_colors(tty, options);
 		tty_printf(tty, "[%lu/%lu]", (unsigned long)choices->available, (unsigned long)choices->size);
 		tty_clearline(tty);
 		border_right(tty, options);
@@ -318,10 +351,9 @@ static void draw(tty_interface_t *state) {
 			tty_setcol(tty, 1);
 			fputc(' ', tty->fout);
 			tty_setcol(tty, 2);
-			tty_clearline(tty);
-		} else {
-			tty_clearline(tty);
 		}
+		inner_colors(tty, options);
+		tty_clearline(tty);
 		const char *choice = choices_get(choices, i);
 		if (choice)
 			draw_match(state, choice, i == choices->selection, inner_cols);
@@ -332,7 +364,7 @@ static void draw(tty_interface_t *state) {
 
 	if (bordered) {
 		tty_printf(tty, "\n");
-		draw_border_horizontal(tty, 1);
+		draw_border_horizontal(tty, options, 1);
 	}
 
 	{
@@ -353,10 +385,11 @@ static void draw(tty_interface_t *state) {
 		fputc(' ', tty->fout);
 		tty_setcol(tty, 2);
 	}
+	inner_colors(tty, options);
 	fputs(options->prompt, tty->fout);
 	if (options->prompt_results) {
 		fputs(state->search, tty->fout);
-		tty_setnormal(tty);
+		inner_colors(tty, options);
 		print_prompt_results_suffix(tty, options, choices);
 		tty_setcol(tty, (bordered ? 2 : 0) + (int)tty_str_vis_columns(options->prompt) + (int)state->cursor);
 	} else {

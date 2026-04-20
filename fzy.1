@@ -34,7 +34,11 @@ Append \fB " < \fIM\fR/\fIT\fR\fB"\fR to the prompt line after the query: \fIM\f
 .
 .TP
 .B \-\-border
-Draw a box around the interactive UI with one space of padding inside each side border. Uses Unicode box-drawing characters when \fBTERM\fR is usable and the locale character set is UTF-8; otherwise \fB+\fR, \fB-\fR, and \fB|\fR. Requires at least five terminal columns. Redraws on resize.
+Draw a box around the interactive UI with one space of padding inside each side border. Uses Unicode box-drawing characters when \fBTERM\fR is usable and the locale character set is UTF-8; otherwise \fB+\fR, \fB-\fR, and \fB|\fR. Requires at least five terminal columns. Redraws on resize. Border glyphs use gray by default (256-color palette).
+.
+.TP
+.B \-\-color =\fISPEC\fR
+Set UI colors for interactive mode. \fISPEC\fR is comma-separated \fBkey\fR\fB:\fR\fIvalue\fR pairs. Keys are \fBfg\fR (text), \fBbg\fR (background), and \fBborder\fR (box glyphs). Each value is a color name (\fBblack\fR, \fBred\fR, \fBgreen\fR, \fByellow\fR, \fBblue\fR, \fBmagenta\fR, \fBpurple\fR, \fBcyan\fR, \fBwhite\fR, \fBgray\fR/\fBgrey\fR, \fBorange\fR, \fBpink\fR) or a decimal index \fB0\fR\-\fB255\fR for the xterm 256-color palette. If \fBborder\fR is omitted, the border stays gray. Example: \fB\-\-color 'bg:green,fg:purple,border:yellow'\fR.
 .
 .TP
 .BR \-s ", " \-\-show-scores

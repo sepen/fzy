@@ -491,6 +491,7 @@ Usage: fzy [OPTION]...
  -j, --workers NUM        Use NUM workers for searching. (default is # of CPUs)
  -i, --show-info          Show selection info line
      --border             Padded box (Unicode lines if UTF-8 locale)
+     --color=SPEC         fg:N,bg:N,border:N key:value,... (name or 0-255; border gray if omitted)
  -h, --help     Display this help and exit
  -v, --version  Output version information and exit
 TTY

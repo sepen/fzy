@@ -1,6 +1,8 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H OPTIONS_H
 
+#define FZY_COLOR_SGR_LEN 48
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,6 +23,10 @@ typedef struct {
 	int show_info;
 	int prompt_results;
 	int border;
+	const char *color_spec;
+	char color_sgr_fg[FZY_COLOR_SGR_LEN];
+	char color_sgr_bg[FZY_COLOR_SGR_LEN];
+	char color_sgr_border[FZY_COLOR_SGR_LEN];
 } options_t;
 
 void options_init(options_t *options);
