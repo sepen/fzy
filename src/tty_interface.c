@@ -68,9 +68,21 @@ static size_t prompt_results_query_gap(const options_t *opt, const char *prompt)
 }
 
 static void fputs_prompt_query(tty_t *tty, const options_t *opt, const char *prompt, const char *query) {
+	if (opt->color_sgr_prompt[0]) {
+		fputs(opt->color_sgr_prompt, tty->fout);
+		tty_invalidate_fg(tty);
+	}
 	fputs(prompt, tty->fout);
 	if (prompt_results_query_gap(opt, prompt))
 		fputc(' ', tty->fout);
+	if (opt->color_sgr_prompt[0]) {
+		if (opt->color_sgr_fg[0]) {
+			fputs(opt->color_sgr_fg, tty->fout);
+			tty_invalidate_fg(tty);
+		} else {
+			tty_setfg(tty, TTY_COLOR_NORMAL);
+		}
+	}
 	fputs(query, tty->fout);
 }
 
@@ -210,7 +222,10 @@ static void draw_border_horizontal(tty_t *tty, const options_t *opt, int bottom)
 		tty_setnormal(tty);
 		if (opt->color_sgr_bg[0])
 			fputs(opt->color_sgr_bg, tty->fout);
-		if (opt->color_sgr_fg[0]) {
+		if (opt->color_sgr_label[0]) {
+			fputs(opt->color_sgr_label, tty->fout);
+			tty_invalidate_fg(tty);
+		} else if (opt->color_sgr_fg[0]) {
 			fputs(opt->color_sgr_fg, tty->fout);
 			tty_invalidate_fg(tty);
 		} else {
@@ -424,7 +439,19 @@ static void draw(tty_interface_t *state) {
 			border_inner_pad(tty, options);
 		else
 			inner_colors(tty, options);
+		if (options->color_sgr_header[0]) {
+			fputs(options->color_sgr_header, tty->fout);
+			tty_invalidate_fg(tty);
+		}
 		tty_printf(tty, "%s", options->header);
+		if (options->color_sgr_header[0]) {
+			if (options->color_sgr_fg[0]) {
+				fputs(options->color_sgr_fg, tty->fout);
+				tty_invalidate_fg(tty);
+			} else {
+				tty_setfg(tty, TTY_COLOR_NORMAL);
+			}
+		}
 		tty_clearline(tty);
 		border_right(tty, options);
 		if (bordered)

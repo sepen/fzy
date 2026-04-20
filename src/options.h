@@ -28,6 +28,9 @@ typedef struct {
 	char color_sgr_fg[FZY_COLOR_SGR_LEN];
 	char color_sgr_bg[FZY_COLOR_SGR_LEN];
 	char color_sgr_border[FZY_COLOR_SGR_LEN];
+	char color_sgr_prompt[FZY_COLOR_SGR_LEN];
+	char color_sgr_header[FZY_COLOR_SGR_LEN];
+	char color_sgr_label[FZY_COLOR_SGR_LEN];
 } options_t;
 
 void options_init(options_t *options);

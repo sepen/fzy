@@ -498,7 +498,7 @@ Usage: fzy [OPTION]...
  -i, --show-info          Show selection info line
      --border             Draw a padded box (Unicode lines if UTF-8 locale)
      --border-label=LABEL Label for the top border (with --border; truncated if too wide)
-     --color=SPEC         Colorize UI with fg:N,bg:N,border:N,... (name or 0-255)
+     --color=SPEC         Colorize with fg:N,bg:N,etc (comma-separated; N=color-name or 0-255)
  -h, --help     Display this help and exit
  -v, --version  Output version information and exit
 TTY

@@ -18,47 +18,35 @@ heuristics for the best match.
 .SH OPTIONS
 .TP
 .BR \-l ", " \-\-lines =\fILINES\fR
-How many lines of items to display. If unspecified, uses the terminal height minus the prompt (and optional header, info line, and border rows).
+Result lines (default: fill terminal height). If unspecified, uses the terminal height minus the prompt (and optional header, info line, and border rows).
 .
 .TP
 .BR \-H ", " \-\-header =\fIHEADER\fR
-String to print as item list header (interactive mode only), on a line between the prompt and the results.
+String to print as item list header (interactive mode only, between the prompt and the results).
 .
 .TP
 .BR \-p ", " \-\-prompt =\fIPROMPT\fR
-Input prompt (default: '> ')
+Input prompt (default '> ')
 .
 .TP
 .B \-\-prompt-results
-Append \fB " < \fIM\fR/\fIT\fR\fB"\fR to the prompt (matches / total items; same counts as \fB\-i\fR).
-.
-.TP
-.B \-\-border
-Draw a padded box (Unicode box-drawing lines if \fBTERM\fR is usable and the locale character set is UTF-8; otherwise \fB+\fR, \fB-\fR, and \fB|\fR). One space of padding inside each vertical side. Requires at least five terminal columns. Redraws on resize. Border glyphs use gray by default (256-color palette) unless overridden with \fB\-\-color\fR \fBborder\fR.
-.
-.TP
-.B \-\-border-label =\fILABEL\fR
-Label for the top border (with \fB\-\-border\fR; truncated if too wide). \fILABEL\fR is centered between the corners. The label uses the same foreground (and background, if set) as \fB\-\-color\fR \fBfg\fR/\fBbg\fR for readability; horizontal segments stay in the border color.
-.
-.TP
-.B \-\-color =\fISPEC\fR
-Colorize the interactive UI: \fISPEC\fR is comma-separated \fBkey\fR\fB:\fR\fIvalue\fR pairs (\fBfg\fR, \fBbg\fR, \fBborder\fR) with \fIvalue\fR a color name or \fB0\fR\-\fB255\fR for the xterm 256-color palette. Names include \fBblack\fR, \fBred\fR, \fBgreen\fR, \fByellow\fR, \fBblue\fR, \fBmagenta\fR, \fBpurple\fR, \fBcyan\fR, \fBwhite\fR, \fBgray\fR/\fBgrey\fR, \fBorange\fR, and \fBpink\fR. If \fBborder\fR is omitted, border glyphs stay gray. Example: \fB\-\-color 'bg:green,fg:purple,border:yellow'\fR.
-.
-.TP
-.BR \-s ", " \-\-show-scores
-Show the scores for each item.
-.
-.TP
-.BR \-t ", " \-\-tty =\fITTY\fR
-Use TTY instead of the default tty device (/dev/tty).
+Append \fB " < \fIM\fR/\fIT\fR\fB"\fR to prompt (matches / total items).
 .
 .TP
 .BR \-q ", " \-\-query =\fIQUERY\fR
-Use QUERY as the initial search query.
+Use QUERY as the initial search string.
 .
 .TP
 .BR \-e ", " \-\-show-matches =\fIQUERY\fR
-Non-interactive mode. Print the matches in sorted order for QUERY to stdout.
+Output the sorted matches of QUERY (non-interactive mode; prints to stdout).
+.
+.TP
+.BR \-t ", " \-\-tty =\fITTY\fR
+Specify file to use as TTY device (default /dev/tty).
+.
+.TP
+.BR \-s ", " \-\-show-scores
+Show the scores of each match.
 .
 .TP
 .BR \-0 ", " \-\-read-null
@@ -66,11 +54,23 @@ Read input delimited by ASCII NUL characters.
 .
 .TP
 .BR \-j ", " \-\-workers =\fINUM\fR
-Use \fINUM\fR workers for searching (default is the number of CPUs).
+Use NUM workers for searching. (default is # of CPUs)
 .
 .TP
 .BR \-i ", " \-\-show-info
 Show selection info line.
+.
+.TP
+.B \-\-border
+Draw a padded box (Unicode lines if UTF-8 locale). Uses Unicode box-drawing characters when \fBTERM\fR is usable and the locale character set is UTF-8; otherwise \fB+\fR, \fB-\fR, and \fB|\fR. One space of padding inside each vertical side. Requires at least five terminal columns. Redraws on resize. Border glyphs use gray by default unless overridden with \fB\-\-color\fR \fBborder\fR.
+.
+.TP
+.B \-\-border-label =\fILABEL\fR
+Label for the top border (with \fB\-\-border\fR; truncated if too wide). \fILABEL\fR is centered between the corners. Foreground defaults to \fB\-\-color\fR \fBfg\fR (and background to \fBbg\fR); use \fBlabel\fR in \fB\-\-color\fR to set the label color explicitly; horizontal segments stay in the border color.
+.
+.TP
+.B \-\-color =\fISPEC\fR
+Colorize with \fBfg\fR\fB:\fR\fIN\fR, \fBbg\fR\fB:\fR\fIN\fR, etc. (comma-separated; \fIN\fR=color-name or \fB0\fR\-\fB255\fR). Keys include \fBfg\fR, \fBbg\fR, \fBborder\fR, \fBprompt\fR, \fBheader\fR, \fBlabel\fR (alias \fBborder-label\fR). Names include \fBblack\fR, \fBred\fR, \fBgreen\fR, \fByellow\fR, \fBblue\fR, \fBmagenta\fR, \fBpurple\fR, \fBcyan\fR, \fBwhite\fR, \fBgray\fR/\fBgrey\fR, \fBorange\fR, and \fBpink\fR. If \fBborder\fR is omitted, border glyphs stay gray. Example: \fB\-\-color 'label:132,prompt:146,header:180,bg:235,fg:250'\fR.
 .
 .TP
 .BR \-h ", " \-\-help

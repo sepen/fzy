@@ -33,7 +33,7 @@ static const char *usage_str =
     " -i, --show-info          Show selection info line\n"
     "     --border             Draw a padded box (Unicode lines if UTF-8 locale)\n"
     "     --border-label=LABEL Label for the top border (with --border; truncated if too wide)\n"
-    "     --color=SPEC         Colorize UI with fg:N,bg:N,border:N,... (name or 0-255)\n"
+    "     --color=SPEC         Colorize with fg:N,bg:N,etc (comma-separated; N=color-name or 0-255)\n"
     " -h, --help     Display this help and exit\n"
     " -v, --version  Output version information and exit\n";
 
@@ -106,6 +106,9 @@ static int color_value_to_index(const char *val, int *idx) {
 static void options_apply_color_spec(options_t *options) {
 	options->color_sgr_fg[0] = '\0';
 	options->color_sgr_bg[0] = '\0';
+	options->color_sgr_prompt[0] = '\0';
+	options->color_sgr_header[0] = '\0';
+	options->color_sgr_label[0] = '\0';
 	snprintf(options->color_sgr_border, FZY_COLOR_SGR_LEN, "%s", FZY_DEFAULT_BORDER_SGR);
 	char *spec = strdup(options->color_spec);
 	if (!spec) {
@@ -144,8 +147,16 @@ static void options_apply_color_spec(options_t *options) {
 			snprintf(options->color_sgr_bg, FZY_COLOR_SGR_LEN, "\033[48;5;%dm", ix);
 		} else if (!strcasecmp(key, "border")) {
 			snprintf(options->color_sgr_border, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+		} else if (!strcasecmp(key, "prompt")) {
+			snprintf(options->color_sgr_prompt, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+		} else if (!strcasecmp(key, "header")) {
+			snprintf(options->color_sgr_header, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+		} else if (!strcasecmp(key, "label") || !strcasecmp(key, "border-label")) {
+			snprintf(options->color_sgr_label, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
 		} else {
-			fprintf(stderr, "Unknown --color key: %s (use fg, bg, border)\n", key);
+			fprintf(stderr,
+				"Unknown --color key: %s (use fg, bg, border, prompt, header, label)\n",
+				key);
 			free(spec);
 			exit(EXIT_FAILURE);
 		}
@@ -175,6 +186,9 @@ void options_init(options_t *options) {
 	options->color_spec      = NULL;
 	options->color_sgr_fg[0] = '\0';
 	options->color_sgr_bg[0] = '\0';
+	options->color_sgr_prompt[0] = '\0';
+	options->color_sgr_header[0] = '\0';
+	options->color_sgr_label[0] = '\0';
 	snprintf(options->color_sgr_border, FZY_COLOR_SGR_LEN, "%s", FZY_DEFAULT_BORDER_SGR);
 }
 
