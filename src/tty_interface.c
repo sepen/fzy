@@ -15,6 +15,45 @@ static int is_boundary(char c) {
 	return ~c & (1 << 7) || c & (1 << 6);
 }
 
+/* Terminal columns taken by *s, skipping CSI "\033[ ... @" through "~" (colors, etc.). */
+static size_t tty_str_vis_columns(const char *s) {
+	size_t w = 0;
+	for (size_t i = 0; s[i];) {
+		if ((unsigned char)s[i] == '\x1b' && s[i + 1] == '[') {
+			i += 2;
+			while (s[i] != '\0' && (s[i] < '@' || s[i] > '~'))
+				i++;
+			if (s[i] != '\0')
+				i++;
+			continue;
+		}
+		if ((unsigned char)s[i] < 0x20u && s[i] != '\t') {
+			i++;
+			continue;
+		}
+		if (s[i] == '\t') {
+			w += 8 - (w % 8);
+			i++;
+			continue;
+		}
+		if (((unsigned char)s[i] & 0xc0) == 0x80) {
+			i++;
+			continue;
+		}
+		unsigned char c = (unsigned char)s[i];
+		if (c >= 0xf0)
+			i += 4;
+		else if (c >= 0xe0)
+			i += 3;
+		else if (c >= 0xc0)
+			i += 2;
+		else
+			i++;
+		w++;
+	}
+	return w;
+}
+
 static void print_prompt_results_suffix(tty_t *tty, const options_t *options, const choices_t *choices) {
 	if (!options->prompt_results)
 		return;
@@ -102,17 +141,23 @@ static void draw(tty_interface_t *state) {
 		}
 	}
 
+	tty_setnormal(tty);
 	tty_setcol(tty, 0);
 	tty_printf(tty, "%s%s", options->prompt, state->search);
-	print_prompt_results_suffix(tty, options, choices);
+	if (options->prompt_results) {
+		tty_setnormal(tty);
+		print_prompt_results_suffix(tty, options, choices);
+	}
 	tty_clearline(tty);
 
 	if (options->header) {
+		tty_setnormal(tty);
 		tty_printf(tty, "\n%s", options->header);
 		tty_clearline(tty);
 	}
 
 	if (options->show_info) {
+		tty_setnormal(tty);
 		tty_printf(tty, "\n[%lu/%lu]", (unsigned long)choices->available, (unsigned long)choices->size);
 		tty_clearline(tty);
 	}
@@ -132,12 +177,14 @@ static void draw(tty_interface_t *state) {
 			tty_moveup(tty, num_lines + above_list);
 	}
 
+	tty_setnormal(tty);
 	tty_setcol(tty, 0);
 	fputs(options->prompt, tty->fout);
 	if (options->prompt_results) {
 		fputs(state->search, tty->fout);
+		tty_setnormal(tty);
 		print_prompt_results_suffix(tty, options, choices);
-		tty_setcol(tty, (int)(strlen(options->prompt) + state->cursor));
+		tty_setcol(tty, (int)(tty_str_vis_columns(options->prompt) + state->cursor));
 	} else {
 		for (size_t i = 0; i < state->cursor; i++)
 			fputc(state->search[i], tty->fout);
