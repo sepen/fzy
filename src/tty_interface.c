@@ -17,14 +17,22 @@ static int is_boundary(char c) {
 
 static void clear(tty_interface_t *state) {
 	tty_t *tty = state->tty;
+	options_t *options = state->options;
 
 	tty_setcol(tty, 0);
+	if (options->header) {
+		tty_moveup(tty, 1);
+		tty_setcol(tty, 0);
+	}
 	size_t line = 0;
-	while (line++ < state->options->num_lines + (state->options->show_info ? 1 : 0)) {
+	unsigned int nclear = options->num_lines + (options->show_info ? 1 : 0);
+	if (options->header)
+		nclear++;
+	while (line++ < nclear) {
 		tty_newline(tty);
 	}
 	tty_clearline(tty);
-	if (state->options->num_lines > 0) {
+	if (options->num_lines > 0) {
 		tty_moveup(tty, line - 1);
 	}
 	tty_flush(tty);
@@ -92,6 +100,13 @@ static void draw(tty_interface_t *state) {
 	}
 
 	tty_setcol(tty, 0);
+	if (options->header) {
+		if (!state->is_first_draw)
+			tty_moveup(tty, 1);
+		tty_printf(tty, "%s", options->header);
+		tty_clearline(tty);
+		tty_printf(tty, "\n");
+	}
 	tty_printf(tty, "%s%s", options->prompt, state->search);
 	tty_clearline(tty);
 
@@ -117,6 +132,8 @@ static void draw(tty_interface_t *state) {
 	for (size_t i = 0; i < state->cursor; i++)
 		fputc(state->search[i], tty->fout);
 	tty_flush(tty);
+
+	state->is_first_draw = 0;
 }
 
 static void update_search(tty_interface_t *state) {
@@ -267,6 +284,7 @@ void tty_interface_init(tty_interface_t *state, tty_t *tty, choices_t *choices, 
 	state->choices = choices;
 	state->options = options;
 	state->ambiguous_key_pending = 0;
+	state->is_first_draw       = 1;
 
 	strcpy(state->input, "");
 	strcpy(state->search, "");

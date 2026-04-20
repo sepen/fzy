@@ -14,6 +14,7 @@ typedef struct {
 	unsigned int num_lines;
 	unsigned int scrolloff;
 	const char *prompt;
+	const char *header;
 	unsigned int workers;
 	char input_delimiter;
 	int show_info;

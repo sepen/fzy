@@ -56,6 +56,8 @@ int main(int argc, char *argv[]) {
 		int num_lines_adjustment = 1;
 		if (options.show_info)
 			num_lines_adjustment++;
+		if (options.header)
+			num_lines_adjustment++;
 
 		if (options.num_lines + num_lines_adjustment > tty_getheight(&tty))
 			options.num_lines = tty_getheight(&tty) - num_lines_adjustment;

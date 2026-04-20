@@ -12,6 +12,7 @@ static const char *usage_str =
     ""
     "Usage: fzy [OPTION]...\n"
     " -l, --lines=LINES        Specify how many lines of results to show (default 10)\n"
+    " -H, --header=STR         String to print as header\n"
     " -p, --prompt=PROMPT      Input prompt (default '> ')\n"
     " -q, --query=QUERY        Use QUERY as the initial search string\n"
     " -e, --show-matches=QUERY Output the sorted matches of QUERY\n"
@@ -31,6 +32,7 @@ static struct option longopts[] = {{"show-matches", required_argument, NULL, 'e'
 				   {"query", required_argument, NULL, 'q'},
 				   {"lines", required_argument, NULL, 'l'},
 				   {"tty", required_argument, NULL, 't'},
+				   {"header", required_argument, NULL, 'H'},
 				   {"prompt", required_argument, NULL, 'p'},
 				   {"show-scores", no_argument, NULL, 's'},
 				   {"read-null", no_argument, NULL, '0'},
@@ -51,6 +53,7 @@ void options_init(options_t *options) {
 	options->tty_filename    = DEFAULT_TTY;
 	options->num_lines       = DEFAULT_NUM_LINES;
 	options->prompt          = DEFAULT_PROMPT;
+	options->header          = NULL;
 	options->workers         = DEFAULT_WORKERS;
 	options->input_delimiter = '\n';
 	options->show_info       = DEFAULT_SHOW_INFO;
@@ -60,7 +63,7 @@ void options_parse(options_t *options, int argc, char *argv[]) {
 	options_init(options);
 
 	int c;
-	while ((c = getopt_long(argc, argv, "vhs0e:q:l:t:p:j:i", longopts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "vhs0e:q:l:t:p:H:j:i", longopts, NULL)) != -1) {
 		switch (c) {
 			case 'v':
 				printf("%s " VERSION " © 2014-2025 John Hawthorn\n", argv[0]);
@@ -92,6 +95,9 @@ void options_parse(options_t *options, int argc, char *argv[]) {
 				break;
 			case 'p':
 				options->prompt = optarg;
+				break;
+			case 'H':
+				options->header = optarg;
 				break;
 			case 'j':
 				if (sscanf(optarg, "%u", &options->workers) != 1) {
