@@ -21,7 +21,7 @@ heuristics for the best match.
 How many lines of items to display. If unspecified, uses the terminal height minus the prompt (and optional header, info line, and border rows).
 .
 .TP
-.BR \-H ", " \-\-header =\fISTR\fR
+.BR \-H ", " \-\-header =\fIHEADER\fR
 String to print as item list header (interactive mode only), on a line between the prompt and the results.
 .
 .TP
@@ -30,15 +30,19 @@ Input prompt (default: '> ')
 .
 .TP
 .B \-\-prompt-results
-Append \fB " < \fIM\fR/\fIT\fR\fB"\fR to the prompt line after the query: \fIM\fR is the number of matches and \fIT\fR is the total number of input items (same counts as \fB\-i\fR).
+Append \fB " < \fIM\fR/\fIT\fR\fB"\fR to the prompt (matches / total items; same counts as \fB\-i\fR).
 .
 .TP
 .B \-\-border
-Draw a box around the interactive UI with one space of padding inside each side border. Uses Unicode box-drawing characters when \fBTERM\fR is usable and the locale character set is UTF-8; otherwise \fB+\fR, \fB-\fR, and \fB|\fR. Requires at least five terminal columns. Redraws on resize. Border glyphs use gray by default (256-color palette).
+Draw a padded box (Unicode box-drawing lines if \fBTERM\fR is usable and the locale character set is UTF-8; otherwise \fB+\fR, \fB-\fR, and \fB|\fR). One space of padding inside each vertical side. Requires at least five terminal columns. Redraws on resize. Border glyphs use gray by default (256-color palette) unless overridden with \fB\-\-color\fR \fBborder\fR.
+.
+.TP
+.B \-\-border-label =\fILABEL\fR
+Label for the top border (with \fB\-\-border\fR; truncated if too wide). \fILABEL\fR is centered between the corners. The label uses the same foreground (and background, if set) as \fB\-\-color\fR \fBfg\fR/\fBbg\fR for readability; horizontal segments stay in the border color.
 .
 .TP
 .B \-\-color =\fISPEC\fR
-Set UI colors for interactive mode. \fISPEC\fR is comma-separated \fBkey\fR\fB:\fR\fIvalue\fR pairs. Keys are \fBfg\fR (text), \fBbg\fR (background), and \fBborder\fR (box glyphs). Each value is a color name (\fBblack\fR, \fBred\fR, \fBgreen\fR, \fByellow\fR, \fBblue\fR, \fBmagenta\fR, \fBpurple\fR, \fBcyan\fR, \fBwhite\fR, \fBgray\fR/\fBgrey\fR, \fBorange\fR, \fBpink\fR) or a decimal index \fB0\fR\-\fB255\fR for the xterm 256-color palette. If \fBborder\fR is omitted, the border stays gray. Example: \fB\-\-color 'bg:green,fg:purple,border:yellow'\fR.
+Colorize the interactive UI: \fISPEC\fR is comma-separated \fBkey\fR\fB:\fR\fIvalue\fR pairs (\fBfg\fR, \fBbg\fR, \fBborder\fR) with \fIvalue\fR a color name or \fB0\fR\-\fB255\fR for the xterm 256-color palette. Names include \fBblack\fR, \fBred\fR, \fBgreen\fR, \fByellow\fR, \fBblue\fR, \fBmagenta\fR, \fBpurple\fR, \fBcyan\fR, \fBwhite\fR, \fBgray\fR/\fBgrey\fR, \fBorange\fR, and \fBpink\fR. If \fBborder\fR is omitted, border glyphs stay gray. Example: \fB\-\-color 'bg:green,fg:purple,border:yellow'\fR.
 .
 .TP
 .BR \-s ", " \-\-show-scores
@@ -61,16 +65,20 @@ Non-interactive mode. Print the matches in sorted order for QUERY to stdout.
 Read input delimited by ASCII NUL characters.
 .
 .TP
+.BR \-j ", " \-\-workers =\fINUM\fR
+Use \fINUM\fR workers for searching (default is the number of CPUs).
+.
+.TP
 .BR \-i ", " \-\-show-info
 Show selection info line.
 .
 .TP
 .BR \-h ", " \-\-help
-Usage help.
+Display this help and exit.
 .
 .TP
 .BR \-v ", " \-\-version
-Usage help.
+Output version information and exit.
 .
 .SH KEYS
 .

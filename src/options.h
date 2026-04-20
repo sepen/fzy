@@ -23,6 +23,7 @@ typedef struct {
 	int show_info;
 	int prompt_results;
 	int border;
+	const char *border_label;
 	const char *color_spec;
 	char color_sgr_fg[FZY_COLOR_SGR_LEN];
 	char color_sgr_bg[FZY_COLOR_SGR_LEN];

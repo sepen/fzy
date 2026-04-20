@@ -13,6 +13,7 @@
 #define OPT_PROMPT_RESULTS 256
 #define OPT_BORDER 259
 #define OPT_COLOR 262
+#define OPT_BORDER_LABEL 263
 
 #define FZY_DEFAULT_BORDER_SGR "\033[38;5;240m"
 
@@ -20,7 +21,7 @@ static const char *usage_str =
     ""
     "Usage: fzy [OPTION]...\n"
     " -l, --lines=LINES        Result lines (default: fill terminal height)\n"
-    " -H, --header=STR         String to print as item list header\n"
+    " -H, --header=HEADER      String to print as item list header\n"
     " -p, --prompt=PROMPT      Input prompt (default '> ')\n"
     "     --prompt-results     Append \" < M/T\" to prompt (matches / total items)\n"
     " -q, --query=QUERY        Use QUERY as the initial search string\n"
@@ -30,8 +31,9 @@ static const char *usage_str =
     " -0, --read-null          Read input delimited by ASCII NUL characters\n"
     " -j, --workers NUM        Use NUM workers for searching. (default is # of CPUs)\n"
     " -i, --show-info          Show selection info line\n"
-    "     --border             Padded box (Unicode lines if UTF-8 locale)\n"
-    "     --color=SPEC         fg:N,bg:N,border:N key:value,... (name or 0-255; border gray if omitted)\n"
+    "     --border             Draw a padded box (Unicode lines if UTF-8 locale)\n"
+    "     --border-label=LABEL Label for the top border (with --border; truncated if too wide)\n"
+    "     --color=SPEC         Colorize UI with fg:N,bg:N,border:N,... (name or 0-255)\n"
     " -h, --help     Display this help and exit\n"
     " -v, --version  Output version information and exit\n";
 
@@ -53,6 +55,7 @@ static struct option longopts[] = {{"show-matches", required_argument, NULL, 'e'
 				   {"show-info", no_argument, NULL, 'i'},
 				   {"prompt-results", no_argument, NULL, OPT_PROMPT_RESULTS},
 				   {"border", no_argument, NULL, OPT_BORDER},
+				   {"border-label", required_argument, NULL, OPT_BORDER_LABEL},
 				   {"color", required_argument, NULL, OPT_COLOR},
 				   {"help", no_argument, NULL, 'h'},
 				   {NULL, 0, NULL, 0}};
@@ -168,6 +171,7 @@ void options_init(options_t *options) {
 	options->show_info       = DEFAULT_SHOW_INFO;
 	options->prompt_results  = 0;
 	options->border          = 0;
+	options->border_label    = NULL;
 	options->color_spec      = NULL;
 	options->color_sgr_fg[0] = '\0';
 	options->color_sgr_bg[0] = '\0';
@@ -241,6 +245,9 @@ void options_parse(options_t *options, int argc, char *argv[]) {
 				break;
 			case OPT_BORDER:
 				options->border = 1;
+				break;
+			case OPT_BORDER_LABEL:
+				options->border_label = optarg;
 				break;
 			case OPT_COLOR:
 				if (!optarg || !*optarg) {

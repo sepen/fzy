@@ -57,6 +57,68 @@ static size_t tty_str_vis_columns(const char *s) {
 	return w;
 }
 
+/* With --prompt-results, one column between prompt and query if prompt lacks trailing space. */
+static size_t prompt_results_query_gap(const options_t *opt, const char *prompt) {
+	if (!opt->prompt_results)
+		return 0;
+	size_t n = strlen(prompt);
+	if (n > 0 && isspace((unsigned char)prompt[n - 1]))
+		return 0;
+	return 1;
+}
+
+static void fputs_prompt_query(tty_t *tty, const options_t *opt, const char *prompt, const char *query) {
+	fputs(prompt, tty->fout);
+	if (prompt_results_query_gap(opt, prompt))
+		fputc(' ', tty->fout);
+	fputs(query, tty->fout);
+}
+
+/* Byte length of longest prefix of s whose visible width (CSI skipped) is <= maxcol. */
+static size_t tty_str_vis_prefix_bytes(const char *s, size_t maxcol) {
+	size_t w = 0;
+	size_t i = 0;
+	while (s[i]) {
+		if ((unsigned char)s[i] == '\x1b' && s[i + 1] == '[') {
+			i += 2;
+			while (s[i] != '\0' && (s[i] < '@' || s[i] > '~'))
+				i++;
+			if (s[i] != '\0')
+				i++;
+			continue;
+		}
+		if ((unsigned char)s[i] < 0x20u && s[i] != '\t') {
+			i++;
+			continue;
+		}
+		if (s[i] == '\t') {
+			size_t tw = 8 - (w % 8);
+			if (w + tw > maxcol)
+				return i;
+			w += tw;
+			i++;
+			continue;
+		}
+		if (((unsigned char)s[i] & 0xc0) == 0x80) {
+			i++;
+			continue;
+		}
+		if (w >= maxcol)
+			return i;
+		unsigned char c = (unsigned char)s[i];
+		size_t adv = 1;
+		if (c >= 0xf0)
+			adv = 4;
+		else if (c >= 0xe0)
+			adv = 3;
+		else if (c >= 0xc0)
+			adv = 2;
+		w++;
+		i += adv;
+	}
+	return i;
+}
+
 static void print_prompt_results_suffix(tty_t *tty, const options_t *options, const choices_t *choices) {
 	if (!options->prompt_results)
 		return;
@@ -128,8 +190,42 @@ static void draw_border_horizontal(tty_t *tty, const options_t *opt, int bottom)
 		fputs(opt->color_sgr_bg, tty->fout);
 	fputs(opt->color_sgr_border, tty->fout);
 	fputs(bottom ? g_border_bl : g_border_tl, tty->fout);
-	for (size_t i = 0; i + 2 < w; i++)
-		fputs(g_border_h, tty->fout);
+
+	const char *lab =
+	    (!bottom && opt->border_label && opt->border_label[0]) ? opt->border_label : NULL;
+	size_t inner = w - 2;
+
+	if (lab && inner > 0) {
+		size_t n = tty_str_vis_prefix_bytes(lab, inner);
+		char buf[1024];
+		if (n >= sizeof buf)
+			n = sizeof buf - 1;
+		memcpy(buf, lab, n);
+		buf[n] = '\0';
+		size_t labvis = tty_str_vis_columns(buf);
+		size_t left = (inner > labvis) ? (inner - labvis) / 2 : 0;
+		size_t right = inner - left - labvis;
+		for (size_t i = 0; i < left; i++)
+			fputs(g_border_h, tty->fout);
+		tty_setnormal(tty);
+		if (opt->color_sgr_bg[0])
+			fputs(opt->color_sgr_bg, tty->fout);
+		if (opt->color_sgr_fg[0]) {
+			fputs(opt->color_sgr_fg, tty->fout);
+			tty_invalidate_fg(tty);
+		} else {
+			tty_setfg(tty, TTY_COLOR_NORMAL);
+		}
+		(void)fwrite(buf, 1, n, tty->fout);
+		fputs(opt->color_sgr_border, tty->fout);
+		if (opt->color_sgr_bg[0])
+			fputs(opt->color_sgr_bg, tty->fout);
+		for (size_t i = 0; i < right; i++)
+			fputs(g_border_h, tty->fout);
+	} else {
+		for (size_t i = 0; i + 2 < w; i++)
+			fputs(g_border_h, tty->fout);
+	}
 	fputs(bottom ? g_border_br : g_border_tr, tty->fout);
 	tty_setnormal(tty);
 }
@@ -308,8 +404,10 @@ static void draw(tty_interface_t *state) {
 		border_inner_pad(tty, options);
 	else
 		inner_colors(tty, options);
-	tty_printf(tty, "%s%s", options->prompt, state->search);
+	fputs_prompt_query(tty, options, options->prompt, state->search);
 	if (options->prompt_results) {
+		if (state->search[0])
+			tty_putc(tty, ' ');
 		inner_colors(tty, options);
 		print_prompt_results_suffix(tty, options, choices);
 	}
@@ -386,15 +484,34 @@ static void draw(tty_interface_t *state) {
 		border_inner_pad(tty, options);
 	else
 		inner_colors(tty, options);
-	fputs(options->prompt, tty->fout);
+	/* Redraw prompt+query once from the inner column: cursor-only motion leaves some
+	 * terminals with a corrupted line; reprinting after EL avoids duplicate full lines
+	 * (--prompt-results) and stray characters (plain prompt). */
+	tty_clearline(tty);
+	fputs_prompt_query(tty, options, options->prompt, state->search);
 	if (options->prompt_results) {
-		fputs(state->search, tty->fout);
+		if (state->search[0])
+			tty_putc(tty, ' ');
 		inner_colors(tty, options);
 		print_prompt_results_suffix(tty, options, choices);
-		tty_setcol(tty, (bordered ? 2 : 0) + (int)tty_str_vis_columns(options->prompt) + (int)state->cursor);
-	} else {
-		for (size_t i = 0; i < state->cursor; i++)
-			fputc(state->search[i], tty->fout);
+	}
+	{
+		int base = bordered ? 2 : 0;
+		int col = base + (int)tty_str_vis_columns(options->prompt) +
+			  (int)prompt_results_query_gap(options, options->prompt);
+		size_t len = strlen(state->search);
+		size_t c = state->cursor;
+		if (c > len)
+			c = len;
+		if (c > SEARCH_SIZE_MAX)
+			c = SEARCH_SIZE_MAX;
+		if (c > 0) {
+			char save = state->search[c];
+			state->search[c] = '\0';
+			col += (int)tty_str_vis_columns(state->search);
+			state->search[c] = save;
+		}
+		tty_setcol(tty, col);
 	}
 	if (bordered)
 		tty_setwrap(tty);

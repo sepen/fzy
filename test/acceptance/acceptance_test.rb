@@ -232,7 +232,13 @@ class FzyTest < Minitest::Test
     @tty = interactive_fzy(input: %w[foo bar baz], args: "--prompt-results -l 2")
     @tty.assert_matches "> < 3/3\nfoo\nbar"
     @tty.send_keys("foo")
-    @tty.assert_matches "> foo < 1/3\nfoo"
+    @tty.assert_matches "> foo  < 1/3\nfoo"
+  end
+
+  def test_prompt_results_tight_prompt
+    @tty = interactive_fzy(input: %w[a b], args: '--prompt-results -p ">" -l 2')
+    @tty.send_keys("a")
+    @tty.assert_matches "> a  < 2/2\na"
   end
 
   def test_prompt
@@ -480,7 +486,7 @@ class FzyTest < Minitest::Test
     @tty.assert_matches <<TTY
 Usage: fzy [OPTION]...
  -l, --lines=LINES        Result lines (default: fill terminal height)
- -H, --header=STR         String to print as item list header
+ -H, --header=HEADER      String to print as item list header
  -p, --prompt=PROMPT      Input prompt (default '> ')
      --prompt-results     Append " < M/T" to prompt (matches / total items)
  -q, --query=QUERY        Use QUERY as the initial search string
@@ -490,8 +496,9 @@ Usage: fzy [OPTION]...
  -0, --read-null          Read input delimited by ASCII NUL characters
  -j, --workers NUM        Use NUM workers for searching. (default is # of CPUs)
  -i, --show-info          Show selection info line
-     --border             Padded box (Unicode lines if UTF-8 locale)
-     --color=SPEC         fg:N,bg:N,border:N key:value,... (name or 0-255; border gray if omitted)
+     --border             Draw a padded box (Unicode lines if UTF-8 locale)
+     --border-label=LABEL Label for the top border (with --border; truncated if too wide)
+     --color=SPEC         Colorize UI with fg:N,bg:N,border:N,... (name or 0-255)
  -h, --help     Display this help and exit
  -v, --version  Output version information and exit
 TTY
