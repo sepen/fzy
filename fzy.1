@@ -22,11 +22,15 @@ How many lines of items to display. If unspecified, defaults to 10 lines.
 .
 .TP
 .BR \-H ", " \-\-header =\fISTR\fR
-String to print as item list header (interactive mode only).
+String to print as item list header (interactive mode only), on a line between the prompt and the results.
 .
 .TP
 .BR \-p ", " \-\-prompt =\fIPROMPT\fR
 Input prompt (default: '> ')
+.
+.TP
+.B \-\-prompt-results
+Append \fB " < \fIM\fR/\fIT\fR\fB"\fR to the prompt line after the query: \fIM\fR is the number of matches and \fIT\fR is the total number of input items (same counts as \fB\-i\fR).
 .
 .TP
 .BR \-s ", " \-\-show-scores

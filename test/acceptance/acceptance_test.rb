@@ -223,6 +223,18 @@ class FzyTest < Minitest::Test
     @tty.assert_matches "> f\nChoose:\nfoo"
   end
 
+  def test_header_with_show_info
+    @tty = interactive_fzy(input: %w[foo bar], args: "--header=H -i")
+    @tty.assert_matches ">\nH\n[2/2]\nfoo\nbar"
+  end
+
+  def test_prompt_results
+    @tty = interactive_fzy(input: %w[foo bar baz], args: "--prompt-results -l 2")
+    @tty.assert_matches "> < 3/3\nfoo\nbar"
+    @tty.send_keys("foo")
+    @tty.assert_matches "> foo < 1/3\nfoo"
+  end
+
   def test_prompt
     @tty = interactive_fzy
     @tty.send_keys("foo")
@@ -470,6 +482,7 @@ Usage: fzy [OPTION]...
  -l, --lines=LINES        Specify how many lines of results to show (default 10)
  -H, --header=STR         String to print as item list header
  -p, --prompt=PROMPT      Input prompt (default '> ')
+     --prompt-results     Append " < M/T" to prompt (matches / total items)
  -q, --query=QUERY        Use QUERY as the initial search string
  -e, --show-matches=QUERY Output the sorted matches of QUERY
  -t, --tty=TTY            Specify file to use as TTY device (default /dev/tty)

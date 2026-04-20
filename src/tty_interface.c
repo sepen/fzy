@@ -15,6 +15,13 @@ static int is_boundary(char c) {
 	return ~c & (1 << 7) || c & (1 << 6);
 }
 
+static void print_prompt_results_suffix(tty_t *tty, const options_t *options, const choices_t *choices) {
+	if (!options->prompt_results)
+		return;
+	unsigned long total = choices->size ? (unsigned long)choices->size : 1UL;
+	tty_printf(tty, " < %lu/%lu", (unsigned long)choices->available, total);
+}
+
 static void clear(tty_interface_t *state) {
 	tty_t *tty = state->tty;
 	options_t *options = state->options;
@@ -97,6 +104,7 @@ static void draw(tty_interface_t *state) {
 
 	tty_setcol(tty, 0);
 	tty_printf(tty, "%s%s", options->prompt, state->search);
+	print_prompt_results_suffix(tty, options, choices);
 	tty_clearline(tty);
 
 	if (options->header) {
@@ -105,7 +113,7 @@ static void draw(tty_interface_t *state) {
 	}
 
 	if (options->show_info) {
-		tty_printf(tty, "\n[%lu/%lu]", choices->available, choices->size);
+		tty_printf(tty, "\n[%lu/%lu]", (unsigned long)choices->available, (unsigned long)choices->size);
 		tty_clearline(tty);
 	}
 
@@ -118,13 +126,22 @@ static void draw(tty_interface_t *state) {
 		}
 	}
 
-	if (num_lines + options->show_info + (options->header ? 1 : 0))
-		tty_moveup(tty, num_lines + options->show_info + (options->header ? 1 : 0));
+	{
+		unsigned int above_list = (options->header ? 1 : 0) + (options->show_info ? 1 : 0);
+		if (num_lines + above_list)
+			tty_moveup(tty, num_lines + above_list);
+	}
 
 	tty_setcol(tty, 0);
 	fputs(options->prompt, tty->fout);
-	for (size_t i = 0; i < state->cursor; i++)
-		fputc(state->search[i], tty->fout);
+	if (options->prompt_results) {
+		fputs(state->search, tty->fout);
+		print_prompt_results_suffix(tty, options, choices);
+		tty_setcol(tty, (int)(strlen(options->prompt) + state->cursor));
+	} else {
+		for (size_t i = 0; i < state->cursor; i++)
+			fputc(state->search[i], tty->fout);
+	}
 	tty_flush(tty);
 }
 

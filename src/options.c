@@ -8,12 +8,15 @@
 
 #include "../config.h"
 
+#define OPT_PROMPT_RESULTS 256
+
 static const char *usage_str =
     ""
     "Usage: fzy [OPTION]...\n"
     " -l, --lines=LINES        Specify how many lines of results to show (default 10)\n"
     " -H, --header=STR         String to print as item list header\n"
     " -p, --prompt=PROMPT      Input prompt (default '> ')\n"
+    "     --prompt-results     Append \" < M/T\" to prompt (matches / total items)\n"
     " -q, --query=QUERY        Use QUERY as the initial search string\n"
     " -e, --show-matches=QUERY Output the sorted matches of QUERY\n"
     " -t, --tty=TTY            Specify file to use as TTY device (default /dev/tty)\n"
@@ -40,6 +43,7 @@ static struct option longopts[] = {{"show-matches", required_argument, NULL, 'e'
 				   {"benchmark", optional_argument, NULL, 'b'},
 				   {"workers", required_argument, NULL, 'j'},
 				   {"show-info", no_argument, NULL, 'i'},
+				   {"prompt-results", no_argument, NULL, OPT_PROMPT_RESULTS},
 				   {"help", no_argument, NULL, 'h'},
 				   {NULL, 0, NULL, 0}};
 
@@ -57,6 +61,7 @@ void options_init(options_t *options) {
 	options->workers         = DEFAULT_WORKERS;
 	options->input_delimiter = '\n';
 	options->show_info       = DEFAULT_SHOW_INFO;
+	options->prompt_results  = 0;
 }
 
 void options_parse(options_t *options, int argc, char *argv[]) {
@@ -119,6 +124,9 @@ void options_parse(options_t *options, int argc, char *argv[]) {
 			} break;
 			case 'i':
 				options->show_info = 1;
+				break;
+			case OPT_PROMPT_RESULTS:
+				options->prompt_results = 1;
 				break;
 			case 'h':
 			default:
