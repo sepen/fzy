@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <limits.h>
+#include <locale.h>
 #include <unistd.h>
 
 #include "match.h"
@@ -15,6 +16,8 @@
 
 int main(int argc, char *argv[]) {
 	int ret = 0;
+
+	setlocale(LC_ALL, "");
 
 	options_t options;
 	options_parse(&options, argc, argv);
@@ -50,17 +53,27 @@ int main(int argc, char *argv[]) {
 		if (!isatty(STDIN_FILENO))
 			choices_fread(&choices, stdin, options.input_delimiter);
 
-		if (options.num_lines > choices.size)
-			options.num_lines = choices.size;
-
-		int num_lines_adjustment = 1;
+		unsigned int tty_h = (unsigned int)tty_getheight(&tty);
+		unsigned int adj  = 1;
 		if (options.show_info)
-			num_lines_adjustment++;
+			adj++;
 		if (options.header)
-			num_lines_adjustment++;
+			adj++;
+		if (options.border && tty_getwidth(&tty) >= 5)
+			adj += 2;
 
-		if (options.num_lines + num_lines_adjustment > tty_getheight(&tty))
-			options.num_lines = tty_getheight(&tty) - num_lines_adjustment;
+		if (!options.lines_user_set) {
+			if (tty_h > adj)
+				options.num_lines = tty_h - adj;
+			else
+				options.num_lines = 1;
+		} else if (options.num_lines + adj > tty_h)
+			options.num_lines = tty_h - adj;
+
+		if (options.num_lines > choices.size)
+			options.num_lines = (unsigned int)choices.size;
+		if (options.num_lines < 1u)
+			options.num_lines = 1;
 
 		tty_interface_t tty_interface;
 		tty_interface_init(&tty_interface, &tty, &choices, &options);

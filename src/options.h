@@ -12,6 +12,7 @@ typedef struct {
 	const char *tty_filename;
 	int show_scores;
 	unsigned int num_lines;
+	int lines_user_set;
 	unsigned int scrolloff;
 	const char *prompt;
 	const char *header;
@@ -19,6 +20,7 @@ typedef struct {
 	char input_delimiter;
 	int show_info;
 	int prompt_results;
+	int border;
 } options_t;
 
 void options_init(options_t *options);

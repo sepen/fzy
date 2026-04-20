@@ -206,7 +206,7 @@ class FzyTest < Minitest::Test
     @tty = interactive_fzy(input: input10)
     @tty.assert_matches ">\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10"
 
-    @tty = interactive_fzy(input: input20)
+    @tty = interactive_fzy(input: input20, args: "-l 10")
     @tty.assert_matches ">\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10"
 
     @tty = interactive_fzy(input: input10, args: "-l 5")
@@ -467,7 +467,7 @@ class FzyTest < Minitest::Test
   end
 
   def test_show_info
-    @tty = interactive_fzy(input: %w[foo bar baz], args: "-i")
+    @tty = interactive_fzy(input: %w[foo bar baz], args: "-i -l 3")
     @tty.assert_matches ">\n[3/3]\nfoo\nbar\nbaz"
     @tty.send_keys("ba")
     @tty.assert_matches "> ba\n[2/3]\nbar\nbaz"
@@ -479,7 +479,7 @@ class FzyTest < Minitest::Test
     @tty = TTYtest.new_terminal(%{#{FZY_PATH} --help})
     @tty.assert_matches <<TTY
 Usage: fzy [OPTION]...
- -l, --lines=LINES        Specify how many lines of results to show (default 10)
+ -l, --lines=LINES        Result lines (default: fill terminal height)
  -H, --header=STR         String to print as item list header
  -p, --prompt=PROMPT      Input prompt (default '> ')
      --prompt-results     Append " < M/T" to prompt (matches / total items)
@@ -490,6 +490,7 @@ Usage: fzy [OPTION]...
  -0, --read-null          Read input delimited by ASCII NUL characters
  -j, --workers NUM        Use NUM workers for searching. (default is # of CPUs)
  -i, --show-info          Show selection info line
+     --border             Padded box (Unicode lines if UTF-8 locale)
  -h, --help     Display this help and exit
  -v, --version  Output version information and exit
 TTY
@@ -500,7 +501,11 @@ TTY
   def interactive_fzy(input: [], before: nil, after: nil, args: "")
     cmd = []
     cmd << %{echo "#{before}"} if before
-    cmd << %{printf "#{input.join("\\n")}" | #{FZY_PATH} #{args}}
+    fzy_args = args.strip
+    unless fzy_args =~ /(^|\s)(-l|--lines)(=|\s)/
+      fzy_args = "#{fzy_args} -l 10".strip
+    end
+    cmd << %{printf "#{input.join("\\n")}" | #{FZY_PATH} #{fzy_args}}
     cmd << %{echo "#{after}"} if after
     cmd = cmd.join("; ")
     TTYtest.new_terminal(cmd)

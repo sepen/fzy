@@ -9,11 +9,12 @@
 #include "../config.h"
 
 #define OPT_PROMPT_RESULTS 256
+#define OPT_BORDER 259
 
 static const char *usage_str =
     ""
     "Usage: fzy [OPTION]...\n"
-    " -l, --lines=LINES        Specify how many lines of results to show (default 10)\n"
+    " -l, --lines=LINES        Result lines (default: fill terminal height)\n"
     " -H, --header=STR         String to print as item list header\n"
     " -p, --prompt=PROMPT      Input prompt (default '> ')\n"
     "     --prompt-results     Append \" < M/T\" to prompt (matches / total items)\n"
@@ -24,6 +25,7 @@ static const char *usage_str =
     " -0, --read-null          Read input delimited by ASCII NUL characters\n"
     " -j, --workers NUM        Use NUM workers for searching. (default is # of CPUs)\n"
     " -i, --show-info          Show selection info line\n"
+    "     --border             Padded box (Unicode lines if UTF-8 locale)\n"
     " -h, --help     Display this help and exit\n"
     " -v, --version  Output version information and exit\n";
 
@@ -44,6 +46,7 @@ static struct option longopts[] = {{"show-matches", required_argument, NULL, 'e'
 				   {"workers", required_argument, NULL, 'j'},
 				   {"show-info", no_argument, NULL, 'i'},
 				   {"prompt-results", no_argument, NULL, OPT_PROMPT_RESULTS},
+				   {"border", no_argument, NULL, OPT_BORDER},
 				   {"help", no_argument, NULL, 'h'},
 				   {NULL, 0, NULL, 0}};
 
@@ -55,13 +58,15 @@ void options_init(options_t *options) {
 	options->show_scores     = 0;
 	options->scrolloff       = 1;
 	options->tty_filename    = DEFAULT_TTY;
-	options->num_lines       = DEFAULT_NUM_LINES;
+	options->num_lines       = 0;
+	options->lines_user_set  = 0;
 	options->prompt          = DEFAULT_PROMPT;
 	options->header          = NULL;
 	options->workers         = DEFAULT_WORKERS;
 	options->input_delimiter = '\n';
 	options->show_info       = DEFAULT_SHOW_INFO;
 	options->prompt_results  = 0;
+	options->border          = 0;
 }
 
 void options_parse(options_t *options, int argc, char *argv[]) {
@@ -120,13 +125,17 @@ void options_parse(options_t *options, int argc, char *argv[]) {
 					usage(argv[0]);
 					exit(EXIT_FAILURE);
 				}
-				options->num_lines = l;
+				options->num_lines     = (unsigned int)l;
+				options->lines_user_set = 1;
 			} break;
 			case 'i':
 				options->show_info = 1;
 				break;
 			case OPT_PROMPT_RESULTS:
 				options->prompt_results = 1;
+				break;
+			case OPT_BORDER:
+				options->border = 1;
 				break;
 			case 'h':
 			default:

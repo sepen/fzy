@@ -23,6 +23,8 @@ typedef struct {
 	int ambiguous_key_pending;
 	char input[32]; /* Pending input buffer */
 
+	int border_first_draw;
+
 	int exit;
 } tty_interface_t;
 

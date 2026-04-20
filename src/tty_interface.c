@@ -1,7 +1,10 @@
 #include <ctype.h>
+#include <langinfo.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "match.h"
 #include "tty_interface.h"
@@ -61,15 +64,88 @@ static void print_prompt_results_suffix(tty_t *tty, const options_t *options, co
 	tty_printf(tty, " < %lu/%lu", (unsigned long)choices->available, total);
 }
 
+static const char *g_border_tl;
+static const char *g_border_tr;
+static const char *g_border_bl;
+static const char *g_border_br;
+static const char *g_border_h;
+static const char *g_border_v;
+
+static void border_update_glyphs(void) {
+	const char *term = getenv("TERM");
+	int unicode = term && strcmp(term, "dumb") != 0 && strcmp(term, "unknown") != 0;
+	if (unicode) {
+		const char *codeset = nl_langinfo(CODESET);
+		if (!codeset || strcasecmp(codeset, "UTF-8") != 0)
+			unicode = 0;
+	}
+	if (unicode) {
+		g_border_tl = "\xe2\x94\x8c";
+		g_border_tr = "\xe2\x94\x90";
+		g_border_bl = "\xe2\x94\x94";
+		g_border_br = "\xe2\x94\x98";
+		g_border_h  = "\xe2\x94\x80";
+		g_border_v  = "\xe2\x94\x82";
+	} else {
+		g_border_tl = g_border_tr = g_border_bl = g_border_br = "+";
+		g_border_h = "-";
+		g_border_v = "|";
+	}
+}
+
+static int has_ui_border(const tty_t *tty, const options_t *opt) {
+	return opt->border && tty_getwidth((tty_t *)tty) >= 5;
+}
+
+static void draw_border_horizontal(tty_t *tty, int bottom) {
+	size_t w = tty_getwidth(tty);
+	tty_setnormal(tty);
+	tty_setcol(tty, 0);
+	if (w == 0)
+		return;
+	if (w < 2)
+		return;
+	fputs(bottom ? g_border_bl : g_border_tl, tty->fout);
+	for (size_t i = 0; i + 2 < w; i++)
+		fputs(g_border_h, tty->fout);
+	fputs(bottom ? g_border_br : g_border_tr, tty->fout);
+}
+
+static void border_left(tty_t *tty, const options_t *opt) {
+	if (!has_ui_border(tty, opt))
+		return;
+	tty_setcol(tty, 0);
+	fputs(g_border_v, tty->fout);
+}
+
+static void border_right(tty_t *tty, const options_t *opt) {
+	if (!has_ui_border(tty, opt))
+		return;
+	size_t w = tty_getwidth(tty);
+	if (w < 5)
+		return;
+	tty_setcol(tty, (int)w - 2);
+	fputc(' ', tty->fout);
+	tty_setcol(tty, (int)w - 1);
+	fputs(g_border_v, tty->fout);
+}
+
 static void clear(tty_interface_t *state) {
 	tty_t *tty = state->tty;
 	options_t *options = state->options;
 
+	tty_getwinsz(tty);
 	tty_setcol(tty, 0);
+	if (has_ui_border(tty, options)) {
+		tty_moveup(tty, 1);
+		tty_setcol(tty, 0);
+	}
 	size_t line = 0;
 	unsigned int nclear = options->num_lines + (options->show_info ? 1 : 0);
 	if (options->header)
 		nclear++;
+	if (has_ui_border(tty, options))
+		nclear += 2;
 	while (line++ < nclear) {
 		tty_newline(tty);
 	}
@@ -80,7 +156,7 @@ static void clear(tty_interface_t *state) {
 	tty_flush(tty);
 }
 
-static void draw_match(tty_interface_t *state, const char *choice, int selected) {
+static void draw_match(tty_interface_t *state, const char *choice, int selected, int max_vis_cols) {
 	tty_t *tty = state->tty;
 	options_t *options = state->options;
 	char *search = state->last_search;
@@ -92,12 +168,14 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected)
 
 	score_t score = match_positions(search, choice, &positions[0]);
 
+	int col = 0;
 	if (options->show_scores) {
 		if (score == SCORE_MIN) {
 			tty_printf(tty, "(     ) ");
 		} else {
 			tty_printf(tty, "(%5.2f) ", score);
 		}
+		col = 8;
 	}
 
 	if (selected)
@@ -109,6 +187,8 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected)
 
 	tty_setnowrap(tty);
 	for (size_t i = 0, p = 0; choice[i] != '\0'; i++) {
+		if (max_vis_cols < INT_MAX && is_boundary(choice[i]) && col >= max_vis_cols)
+			break;
 		if (positions[p] == i) {
 			tty_setfg(tty, TTY_COLOR_HIGHLIGHT);
 			p++;
@@ -120,6 +200,8 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected)
 		} else {
 			tty_printf(tty, "%c", choice[i]);
 		}
+		if (is_boundary(choice[i]))
+			col++;
 	}
 	tty_setwrap(tty);
 	tty_setnormal(tty);
@@ -129,6 +211,30 @@ static void draw(tty_interface_t *state) {
 	tty_t *tty = state->tty;
 	choices_t *choices = state->choices;
 	options_t *options = state->options;
+
+	tty_getwinsz(tty);
+
+	if (options->border)
+		border_update_glyphs();
+
+	if (!options->lines_user_set) {
+		unsigned int tty_h = (unsigned int)tty_getheight(tty);
+		unsigned int adj  = 1;
+		if (options->show_info)
+			adj++;
+		if (options->header)
+			adj++;
+		if (options->border && tty_getwidth(tty) >= 5)
+			adj += 2;
+		if (tty_h > adj)
+			options->num_lines = tty_h - adj;
+		else
+			options->num_lines = 1;
+		if (options->num_lines > choices->size)
+			options->num_lines = (unsigned int)choices->size;
+		if (options->num_lines < 1u)
+			options->num_lines = 1;
+	}
 
 	unsigned int num_lines = options->num_lines;
 	size_t start = 0;
@@ -141,55 +247,128 @@ static void draw(tty_interface_t *state) {
 		}
 	}
 
+	const int bordered = has_ui_border(tty, options);
+	const int inner_cols = bordered ? (int)tty_getwidth(tty) - 4 : INT_MAX;
+
+	if (bordered) {
+		if (!state->border_first_draw)
+			tty_moveup(tty, 1);
+		draw_border_horizontal(tty, 0);
+		tty_printf(tty, "\n");
+	}
+
 	tty_setnormal(tty);
-	tty_setcol(tty, 0);
+	border_left(tty, options);
+	if (bordered) {
+		tty_setnowrap(tty);
+		tty_setcol(tty, 1);
+		fputc(' ', tty->fout);
+		tty_setcol(tty, 2);
+	}
 	tty_printf(tty, "%s%s", options->prompt, state->search);
 	if (options->prompt_results) {
 		tty_setnormal(tty);
 		print_prompt_results_suffix(tty, options, choices);
 	}
 	tty_clearline(tty);
+	border_right(tty, options);
+	if (bordered)
+		tty_setwrap(tty);
 
 	if (options->header) {
+		tty_printf(tty, "\n");
 		tty_setnormal(tty);
-		tty_printf(tty, "\n%s", options->header);
+		border_left(tty, options);
+		if (bordered) {
+			tty_setnowrap(tty);
+			tty_setcol(tty, 1);
+			fputc(' ', tty->fout);
+			tty_setcol(tty, 2);
+		}
+		tty_printf(tty, "%s", options->header);
 		tty_clearline(tty);
+		border_right(tty, options);
+		if (bordered)
+			tty_setwrap(tty);
 	}
 
 	if (options->show_info) {
+		tty_printf(tty, "\n");
 		tty_setnormal(tty);
-		tty_printf(tty, "\n[%lu/%lu]", (unsigned long)choices->available, (unsigned long)choices->size);
+		border_left(tty, options);
+		if (bordered) {
+			tty_setnowrap(tty);
+			tty_setcol(tty, 1);
+			fputc(' ', tty->fout);
+			tty_setcol(tty, 2);
+		}
+		tty_printf(tty, "[%lu/%lu]", (unsigned long)choices->available, (unsigned long)choices->size);
 		tty_clearline(tty);
+		border_right(tty, options);
+		if (bordered)
+			tty_setwrap(tty);
 	}
 
 	for (size_t i = start; i < start + num_lines; i++) {
 		tty_printf(tty, "\n");
-		tty_clearline(tty);
-		const char *choice = choices_get(choices, i);
-		if (choice) {
-			draw_match(state, choice, i == choices->selection);
+		tty_setnormal(tty);
+		border_left(tty, options);
+		if (bordered) {
+			tty_setnowrap(tty);
+			tty_setcol(tty, 1);
+			fputc(' ', tty->fout);
+			tty_setcol(tty, 2);
+			tty_clearline(tty);
+		} else {
+			tty_clearline(tty);
 		}
+		const char *choice = choices_get(choices, i);
+		if (choice)
+			draw_match(state, choice, i == choices->selection, inner_cols);
+		border_right(tty, options);
+		if (bordered)
+			tty_setwrap(tty);
+	}
+
+	if (bordered) {
+		tty_printf(tty, "\n");
+		draw_border_horizontal(tty, 1);
 	}
 
 	{
 		unsigned int above_list = (options->header ? 1 : 0) + (options->show_info ? 1 : 0);
-		if (num_lines + above_list)
-			tty_moveup(tty, num_lines + above_list);
+		unsigned int move = num_lines + above_list;
+		if (bordered)
+			move++;
+		if (move)
+			tty_moveup(tty, move);
 	}
 
 	tty_setnormal(tty);
 	tty_setcol(tty, 0);
+	border_left(tty, options);
+	if (bordered) {
+		tty_setnowrap(tty);
+		tty_setcol(tty, 1);
+		fputc(' ', tty->fout);
+		tty_setcol(tty, 2);
+	}
 	fputs(options->prompt, tty->fout);
 	if (options->prompt_results) {
 		fputs(state->search, tty->fout);
 		tty_setnormal(tty);
 		print_prompt_results_suffix(tty, options, choices);
-		tty_setcol(tty, (int)(tty_str_vis_columns(options->prompt) + state->cursor));
+		tty_setcol(tty, (bordered ? 2 : 0) + (int)tty_str_vis_columns(options->prompt) + (int)state->cursor);
 	} else {
 		for (size_t i = 0; i < state->cursor; i++)
 			fputc(state->search[i], tty->fout);
 	}
+	if (bordered)
+		tty_setwrap(tty);
 	tty_flush(tty);
+
+	if (bordered)
+		state->border_first_draw = 0;
 }
 
 static void update_search(tty_interface_t *state) {
@@ -340,6 +519,7 @@ void tty_interface_init(tty_interface_t *state, tty_t *tty, choices_t *choices, 
 	state->choices = choices;
 	state->options = options;
 	state->ambiguous_key_pending = 0;
+	state->border_first_draw  = 1;
 
 	strcpy(state->input, "");
 	strcpy(state->search, "");

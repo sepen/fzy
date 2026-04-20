@@ -18,7 +18,7 @@ heuristics for the best match.
 .SH OPTIONS
 .TP
 .BR \-l ", " \-\-lines =\fILINES\fR
-How many lines of items to display. If unspecified, defaults to 10 lines.
+How many lines of items to display. If unspecified, uses the terminal height minus the prompt (and optional header, info line, and border rows).
 .
 .TP
 .BR \-H ", " \-\-header =\fISTR\fR
@@ -31,6 +31,10 @@ Input prompt (default: '> ')
 .TP
 .B \-\-prompt-results
 Append \fB " < \fIM\fR/\fIT\fR\fB"\fR to the prompt line after the query: \fIM\fR is the number of matches and \fIT\fR is the total number of input items (same counts as \fB\-i\fR).
+.
+.TP
+.B \-\-border
+Draw a box around the interactive UI with one space of padding inside each side border. Uses Unicode box-drawing characters when \fBTERM\fR is usable and the locale character set is UTF-8; otherwise \fB+\fR, \fB-\fR, and \fB|\fR. Requires at least five terminal columns. Redraws on resize.
 .
 .TP
 .BR \-s ", " \-\-show-scores
