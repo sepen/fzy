@@ -218,9 +218,9 @@ class FzyTest < Minitest::Test
 
   def test_header
     @tty = interactive_fzy(input: %w[foo bar], args: "--header=Choose:")
-    @tty.assert_matches "Choose:\n>\nfoo\nbar"
+    @tty.assert_matches ">\nChoose:\nfoo\nbar"
     @tty.send_keys("f")
-    @tty.assert_matches "Choose:\n> f\nfoo"
+    @tty.assert_matches "> f\nChoose:\nfoo"
   end
 
   def test_prompt
@@ -468,7 +468,7 @@ class FzyTest < Minitest::Test
     @tty.assert_matches <<TTY
 Usage: fzy [OPTION]...
  -l, --lines=LINES        Specify how many lines of results to show (default 10)
- -H, --header=STR         String to print as header
+ -H, --header=STR         String to print as item list header
  -p, --prompt=PROMPT      Input prompt (default '> ')
  -q, --query=QUERY        Use QUERY as the initial search string
  -e, --show-matches=QUERY Output the sorted matches of QUERY

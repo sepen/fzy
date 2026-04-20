@@ -20,10 +20,6 @@ static void clear(tty_interface_t *state) {
 	options_t *options = state->options;
 
 	tty_setcol(tty, 0);
-	if (options->header) {
-		tty_moveup(tty, 1);
-		tty_setcol(tty, 0);
-	}
 	size_t line = 0;
 	unsigned int nclear = options->num_lines + (options->show_info ? 1 : 0);
 	if (options->header)
@@ -100,15 +96,13 @@ static void draw(tty_interface_t *state) {
 	}
 
 	tty_setcol(tty, 0);
-	if (options->header) {
-		if (!state->is_first_draw)
-			tty_moveup(tty, 1);
-		tty_printf(tty, "%s", options->header);
-		tty_clearline(tty);
-		tty_printf(tty, "\n");
-	}
 	tty_printf(tty, "%s%s", options->prompt, state->search);
 	tty_clearline(tty);
+
+	if (options->header) {
+		tty_printf(tty, "\n%s", options->header);
+		tty_clearline(tty);
+	}
 
 	if (options->show_info) {
 		tty_printf(tty, "\n[%lu/%lu]", choices->available, choices->size);
@@ -124,16 +118,14 @@ static void draw(tty_interface_t *state) {
 		}
 	}
 
-	if (num_lines + options->show_info)
-		tty_moveup(tty, num_lines + options->show_info);
+	if (num_lines + options->show_info + (options->header ? 1 : 0))
+		tty_moveup(tty, num_lines + options->show_info + (options->header ? 1 : 0));
 
 	tty_setcol(tty, 0);
 	fputs(options->prompt, tty->fout);
 	for (size_t i = 0; i < state->cursor; i++)
 		fputc(state->search[i], tty->fout);
 	tty_flush(tty);
-
-	state->is_first_draw = 0;
 }
 
 static void update_search(tty_interface_t *state) {
@@ -284,7 +276,6 @@ void tty_interface_init(tty_interface_t *state, tty_t *tty, choices_t *choices, 
 	state->choices = choices;
 	state->options = options;
 	state->ambiguous_key_pending = 0;
-	state->is_first_draw       = 1;
 
 	strcpy(state->input, "");
 	strcpy(state->search, "");

@@ -12,7 +12,7 @@ static const char *usage_str =
     ""
     "Usage: fzy [OPTION]...\n"
     " -l, --lines=LINES        Specify how many lines of results to show (default 10)\n"
-    " -H, --header=STR         String to print as header\n"
+    " -H, --header=STR         String to print as item list header\n"
     " -p, --prompt=PROMPT      Input prompt (default '> ')\n"
     " -q, --query=QUERY        Use QUERY as the initial search string\n"
     " -e, --show-matches=QUERY Output the sorted matches of QUERY\n"
