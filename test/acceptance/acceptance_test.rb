@@ -463,12 +463,17 @@ class FzyTest < Minitest::Test
   def test_long_strings
     ascii = "LongStringOfText" * 6
     unicode = "ＬｏｎｇＳｔｒｉｎｇＯｆＴｅｘｔ" * 3
-
-    @tty = interactive_fzy(input: [ascii, unicode])
+    cols = 80
+    budget = cols
+    cap = budget > 2 ? budget - 2 : 0
+    exp_ascii = ascii.length > budget ? (ascii.byteslice(0, cap) + "..") : ascii
+    exp_uni = unicode.length > budget ? (unicode.chars.take(cap).join + "..") : unicode
+    cmd = %{printf '%s\\n%s' '#{ascii}' '#{unicode}' | env COLUMNS=#{cols} #{FZY_PATH} --info=hidden -l 10}
+    @tty = TTYtest.new_terminal(cmd)
     @tty.assert_matches <<~TTY
       >
-      LongStringOfTextLongStringOfTextLongStringOfTextLongStringOfTextLongStringOfText
-      ＬｏｎｇＳｔｒｉｎｇＯｆＴｅｘｔＬｏｎｇＳｔｒｉｎｇＯｆＴｅｘｔＬｏｎｇＳｔｒｉ
+      #{exp_ascii}
+      #{exp_uni}
     TTY
   end
 

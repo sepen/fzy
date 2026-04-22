@@ -127,6 +127,38 @@ static size_t tty_str_vis_prefix_bytes(const char *s, size_t maxcol) {
 	return i;
 }
 
+/* Visible width of a choice row (same rules as draw_match: newlines count as one column). */
+static unsigned choice_row_vis_width(const char *choice) {
+	unsigned v = 0;
+	for (size_t i = 0; choice[i] != '\0'; i++) {
+		if (choice[i] == '\n')
+			v++;
+		else if (is_boundary(choice[i]))
+			v++;
+	}
+	return v;
+}
+
+/* Largest byte index `cut` such that prefix choice[0..cut) has visible width <= max_vis. */
+static size_t choice_row_vis_prefix_cut(const char *choice, unsigned max_vis) {
+	if (max_vis == 0)
+		return 0;
+	unsigned v = 0;
+	for (size_t i = 0; choice[i] != '\0'; i++) {
+		unsigned inc;
+		if (choice[i] == '\n')
+			inc = 1u;
+		else if (is_boundary(choice[i]))
+			inc = 1u;
+		else
+			continue; /* UTF-8 continuation: counts with leading byte */
+		if (v + inc > max_vis)
+			return i;
+		v += inc;
+	}
+	return strlen(choice);
+}
+
 static void restore_after_info_color(tty_t *tty, const options_t *opt) {
 	if (!opt->color_sgr_info[0])
 		return;
@@ -357,10 +389,21 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected,
 #endif
 	}
 
+	size_t cut = strlen(choice);
+	int ellipsis = 0;
+	unsigned budget_choice = 0;
+	if (max_vis_cols < INT_MAX && col < max_vis_cols) {
+		budget_choice = (unsigned)(max_vis_cols - col);
+		unsigned fullw = choice_row_vis_width(choice);
+		if (fullw > budget_choice) {
+			ellipsis = 1;
+			unsigned target = budget_choice > 2u ? budget_choice - 2u : 0u;
+			cut = choice_row_vis_prefix_cut(choice, target);
+		}
+	}
+
 	tty_setnowrap(tty);
-	for (size_t i = 0, p = 0; choice[i] != '\0'; i++) {
-		if (max_vis_cols < INT_MAX && is_boundary(choice[i]) && col >= max_vis_cols)
-			break;
+	for (size_t i = 0, p = 0; i < cut && choice[i] != '\0'; i++) {
 		if (positions[p] == i) {
 			tty_setfg(tty, TTY_COLOR_HIGHLIGHT);
 			p++;
@@ -383,6 +426,26 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected,
 		}
 		if (is_boundary(choice[i]))
 			col++;
+	}
+	if (ellipsis) {
+		if (selected && (options->color_sgr_cursorline_bg[0] || options->color_sgr_cursorline_fg[0])) {
+			if (options->color_sgr_cursorline_fg[0])
+				fputs(options->color_sgr_cursorline_fg, tty->fout);
+			tty_invalidate_fg(tty);
+		} else if (options->color_sgr_fg[0]) {
+			fputs(options->color_sgr_fg, tty->fout);
+			tty_invalidate_fg(tty);
+		} else {
+			tty_setfg(tty, TTY_COLOR_NORMAL);
+		}
+		if (budget_choice >= 2u)
+			tty_printf(tty, "..");
+		else if (budget_choice == 1u)
+			tty_putc(tty, '.');
+		if (budget_choice >= 2u)
+			col += 2;
+		else if (budget_choice == 1u)
+			col += 1;
 	}
 	tty_setwrap(tty);
 	tty_setnormal(tty);
