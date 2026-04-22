@@ -70,7 +70,7 @@ Label for the top border (with \fB\-\-border\fR; truncated if too wide). \fILABE
 .
 .TP
 .B \-\-color =\fISPEC\fR
-Colorize with \fBfg\fR\fB:\fR\fIN\fR, \fBbg\fR\fB:\fR\fIN\fR, etc. (comma-separated; \fIN\fR=color-name or \fB0\fR\-\fB255\fR). Keys include \fBfg\fR, \fBbg\fR, \fBborder\fR, \fBprompt\fR, \fBheader\fR, \fBinfo\fR (match-count text), and \fBlabel\fR (alias \fBborder-label\fR). Names include \fBblack\fR, \fBred\fR, \fBgreen\fR, \fByellow\fR, \fBblue\fR, \fBmagenta\fR, \fBpurple\fR, \fBcyan\fR, \fBwhite\fR, \fBgray\fR/\fBgrey\fR, \fBorange\fR, and \fBpink\fR. When colors are enabled (default), the theme uses \fBprompt\fR \fB110\fR, \fBinfo\fR \fB143\fR, and \fBheader\fR \fB109\fR unless overridden here; border defaults to gray. Example: \fB\-\-color 'label:132,prompt:146,header:180,bg:235,fg:250'\fR.
+Colorize with \fBfg\fR\fB:\fR\fIN\fR, \fBbg\fR\fB:\fR\fIN\fR, \fBfg+\fR\fB:\fR\fIN\fR (selected row foreground, bold plus color), \fBbg+\fR\fB:\fR\fIN\fR (selected row background), etc. (comma-separated; \fIN\fR=color-name or \fB0\fR\-\fB255\fR). Other keys: \fBborder\fR, \fBprompt\fR, \fBheader\fR, \fBinfo\fR, \fBlabel\fR (alias \fBborder-label\fR). With colors on (default), the search string is bold; the selected list row uses bold foreground and dark gray background unless overridden via \fBfg+\fR/\fBbg+\fR. Example: \fB\-\-color 'fg+:208,bg+:236,label:132,prompt:146,header:180,bg:235,fg:250'\fR.
 .
 .TP
 .B \-\-no-color

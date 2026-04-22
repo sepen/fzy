@@ -71,7 +71,15 @@ static void fputs_prompt_query(tty_t *tty, const options_t *opt, const char *pro
 			tty_setfg(tty, TTY_COLOR_NORMAL);
 		}
 	}
+	if (opt->color_sgr_query[0]) {
+		fputs(opt->color_sgr_query, tty->fout);
+		tty_invalidate_fg(tty);
+	}
 	fputs(query, tty->fout);
+	if (opt->color_sgr_query[0]) {
+		fputs("\033[22m", tty->fout);
+		tty_invalidate_fg(tty);
+	}
 }
 
 /* Byte length of longest prefix of s whose visible width (CSI skipped) is <= maxcol. */
@@ -322,6 +330,16 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected,
 	score_t score = match_positions(search, choice, &positions[0]);
 
 	int col = 0;
+
+	if (selected && (options->color_sgr_cursorline_bg[0] || options->color_sgr_cursorline_fg[0])) {
+		tty_setnormal(tty);
+		if (options->color_sgr_cursorline_bg[0])
+			fputs(options->color_sgr_cursorline_bg, tty->fout);
+		if (options->color_sgr_cursorline_fg[0])
+			fputs(options->color_sgr_cursorline_fg, tty->fout);
+		tty_invalidate_fg(tty);
+	}
+
 	if (options->show_scores) {
 		if (score == SCORE_MIN) {
 			tty_printf(tty, "(     ) ");
@@ -331,12 +349,13 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected,
 		col = 8;
 	}
 
-	if (selected)
+	if (selected && !(options->color_sgr_cursorline_bg[0] || options->color_sgr_cursorline_fg[0])) {
 #ifdef TTY_SELECTION_UNDERLINE
 		tty_setunderline(tty);
 #else
 		tty_setinvert(tty);
 #endif
+	}
 
 	tty_setnowrap(tty);
 	for (size_t i = 0, p = 0; choice[i] != '\0'; i++) {
@@ -346,7 +365,11 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected,
 			tty_setfg(tty, TTY_COLOR_HIGHLIGHT);
 			p++;
 		} else {
-			if (options->color_sgr_fg[0]) {
+			if (selected && (options->color_sgr_cursorline_bg[0] || options->color_sgr_cursorline_fg[0])) {
+				if (options->color_sgr_cursorline_fg[0])
+					fputs(options->color_sgr_cursorline_fg, tty->fout);
+				tty_invalidate_fg(tty);
+			} else if (options->color_sgr_fg[0]) {
 				fputs(options->color_sgr_fg, tty->fout);
 				tty_invalidate_fg(tty);
 			} else {
@@ -584,6 +607,8 @@ static void draw(tty_interface_t *state) {
 	} else if (options->info_mode == FZY_INFO_INLINE_RIGHT) {
 		print_prompt_info_inline_right(tty, options, choices, state->search, bordered);
 	}
+	if (bordered)
+		border_right(tty, options);
 	{
 		int base = bordered ? 2 : 0;
 		int col = base + (int)tty_str_vis_columns(options->prompt);

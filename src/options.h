@@ -40,6 +40,9 @@ typedef struct {
 	char color_sgr_header[FZY_COLOR_SGR_LEN];
 	char color_sgr_info[FZY_COLOR_SGR_LEN];
 	char color_sgr_label[FZY_COLOR_SGR_LEN];
+	char color_sgr_query[FZY_COLOR_SGR_LEN];
+	char color_sgr_cursorline_fg[FZY_COLOR_SGR_LEN];
+	char color_sgr_cursorline_bg[FZY_COLOR_SGR_LEN];
 } options_t;
 
 void options_init(options_t *options);

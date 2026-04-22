@@ -17,6 +17,12 @@
 #define OPT_NO_COLOR 264
 
 #define FZY_DEFAULT_BORDER_SGR "\033[38;5;240m"
+#define FZY_DEFAULT_PROMPT_SGR "\033[38;5;153m"
+#define FZY_DEFAULT_INFO_SGR "\033[38;5;144m"
+#define FZY_DEFAULT_HEADER_SGR "\033[38;5;109m"
+#define FZY_DEFAULT_QUERY_SGR "\033[1m"
+#define FZY_DEFAULT_CURSORLINE_FG_SGR "\033[1m"
+#define FZY_DEFAULT_CURSORLINE_BG_SGR "\033[48;5;236m"
 
 static const char *usage_str =
     ""
@@ -35,7 +41,8 @@ static const char *usage_str =
     " -i, --show-info          Show selection info line\n"
     "     --border             Draw a padded box (Unicode lines if UTF-8 locale)\n"
     "     --border-label=LABEL Label for the top border (with --border; truncated if too wide)\n"
-    "     --color=SPEC         Colorize with fg:N,bg:N,etc (comma-separated; N=color-name or 0-255)\n"
+    "     --color=SPEC         Colorize with fg:N,bg:N,fg+:N,bg+:N,... (comma-separated; fg+/bg+ =\n"
+    "                          selected row; N=color-name or 0-255)\n"
     "     --no-color           Disable ANSI colors (overrides default theme and --color)\n"
     " -h, --help     Display this help and exit\n"
     " -v, --version  Output version information and exit\n";
@@ -94,10 +101,13 @@ static int color_value_to_index(const char *val, int *idx) {
 	static const struct {
 		const char *name;
 		int idx;
-	} map[] = {{"black", 0},	 {"red", 9},	{"green", 40}, {"yellow", 226},
-		   {"blue", 21},	 {"magenta", 5}, {"purple", 129}, {"cyan", 51},
-		   {"white", 15},	 {"gray", 240}, {"grey", 240},	{"orange", 208},
-		   {"pink", 218}};
+	} map[] = {
+		{"black", 0}, {"gray", 1}, {"grey", 8}, {"darkgray", 240}, {"darkgrey", 240},
+		{"red", 9}, {"darkred", 88}, {"green", 40}, {"darkgreen", 28},
+		{"yellow", 226}, {"darkyellow", 220}, {"orange", 208}, {"darkorange", 202},
+		{"blue", 21}, {"darkblue", 27}, {"magenta", 5}, {"purple", 129}, {"cyan", 51},
+		{"white", 15}, {"darkwhite", 231},{"lightgray", 250}, {"lightgrey", 250},
+		{"pink", 218}, {"darkpink", 219}};
 	for (size_t i = 0; i < sizeof map / sizeof map[0]; i++) {
 		if (!strcmp(buf, map[i].name)) {
 			*idx = map[i].idx;
@@ -109,18 +119,24 @@ static int color_value_to_index(const char *val, int *idx) {
 
 static void options_apply_default_theme(options_t *options) {
 	if (!options->use_color) {
-		options->color_sgr_fg[0]     = '\0';
-		options->color_sgr_bg[0]     = '\0';
-		options->color_sgr_prompt[0] = '\0';
-		options->color_sgr_header[0] = '\0';
-		options->color_sgr_info[0]   = '\0';
-		options->color_sgr_label[0]  = '\0';
-		options->color_sgr_border[0] = '\0';
+		options->color_sgr_fg[0]            = '\0';
+		options->color_sgr_bg[0]            = '\0';
+		options->color_sgr_prompt[0]        = '\0';
+		options->color_sgr_header[0]        = '\0';
+		options->color_sgr_info[0]          = '\0';
+		options->color_sgr_label[0]         = '\0';
+		options->color_sgr_border[0]        = '\0';
+		options->color_sgr_query[0]         = '\0';
+		options->color_sgr_cursorline_fg[0] = '\0';
+		options->color_sgr_cursorline_bg[0] = '\0';
 		return;
 	}
-	snprintf(options->color_sgr_prompt, FZY_COLOR_SGR_LEN, "\033[38;5;153m");
-	snprintf(options->color_sgr_info, FZY_COLOR_SGR_LEN, "\033[38;5;144m");
-	snprintf(options->color_sgr_header, FZY_COLOR_SGR_LEN, "\033[38;5;109m");
+	snprintf(options->color_sgr_prompt, FZY_COLOR_SGR_LEN, "%s", FZY_DEFAULT_PROMPT_SGR);
+	snprintf(options->color_sgr_info, FZY_COLOR_SGR_LEN, "%s", FZY_DEFAULT_INFO_SGR);
+	snprintf(options->color_sgr_header, FZY_COLOR_SGR_LEN, "%s", FZY_DEFAULT_HEADER_SGR);
+	snprintf(options->color_sgr_query, FZY_COLOR_SGR_LEN, "%s", FZY_DEFAULT_QUERY_SGR);
+	snprintf(options->color_sgr_cursorline_fg, FZY_COLOR_SGR_LEN, "%s", FZY_DEFAULT_CURSORLINE_FG_SGR);
+	snprintf(options->color_sgr_cursorline_bg, FZY_COLOR_SGR_LEN, "%s", FZY_DEFAULT_CURSORLINE_BG_SGR);
 	options->color_sgr_fg[0]    = '\0';
 	options->color_sgr_bg[0]    = '\0';
 	options->color_sgr_label[0] = '\0';
@@ -174,11 +190,15 @@ static void options_apply_color_spec(options_t *options) {
 			snprintf(options->color_sgr_header, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
 		} else if (!strcasecmp(key, "info")) {
 			snprintf(options->color_sgr_info, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+		} else if (!strcasecmp(key, "fg+")) {
+			snprintf(options->color_sgr_cursorline_fg, FZY_COLOR_SGR_LEN, "\033[1m\033[38;5;%dm", ix);
+		} else if (!strcasecmp(key, "bg+")) {
+			snprintf(options->color_sgr_cursorline_bg, FZY_COLOR_SGR_LEN, "\033[48;5;%dm", ix);
 		} else if (!strcasecmp(key, "label") || !strcasecmp(key, "border-label")) {
 			snprintf(options->color_sgr_label, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
 		} else {
 			fprintf(stderr,
-				"Unknown --color key: %s (use fg, bg, border, prompt, header, info, label)\n",
+				"Unknown --color key: %s (use fg, bg, fg+, bg+, border, prompt, header, info, label)\n",
 				key);
 			free(spec);
 			exit(EXIT_FAILURE);
