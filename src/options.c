@@ -10,7 +10,7 @@
 
 #include "../config.h"
 
-#define OPT_PROMPT_RESULTS 256
+#define OPT_INFO 256
 #define OPT_BORDER 259
 #define OPT_COLOR 262
 #define OPT_BORDER_LABEL 263
@@ -23,7 +23,7 @@ static const char *usage_str =
     " -l, --lines=LINES        Result lines (default: fill terminal height)\n"
     " -H, --header=HEADER      String to print as item list header\n"
     " -p, --prompt=PROMPT      Input prompt (default '> ')\n"
-    "     --prompt-results     Append \" < M/T\" to prompt (matches / total items)\n"
+    "     --info               Append \" < M/T\" to prompt (matches / total items)\n"
     " -q, --query=QUERY        Use QUERY as the initial search string\n"
     " -e, --show-matches=QUERY Output the sorted matches of QUERY\n"
     " -t, --tty=TTY            Specify file to use as TTY device (default /dev/tty)\n"
@@ -53,7 +53,7 @@ static struct option longopts[] = {{"show-matches", required_argument, NULL, 'e'
 				   {"benchmark", optional_argument, NULL, 'b'},
 				   {"workers", required_argument, NULL, 'j'},
 				   {"show-info", no_argument, NULL, 'i'},
-				   {"prompt-results", no_argument, NULL, OPT_PROMPT_RESULTS},
+				   {"info", no_argument, NULL, OPT_INFO},
 				   {"border", no_argument, NULL, OPT_BORDER},
 				   {"border-label", required_argument, NULL, OPT_BORDER_LABEL},
 				   {"color", required_argument, NULL, OPT_COLOR},
@@ -180,7 +180,7 @@ void options_init(options_t *options) {
 	options->workers         = DEFAULT_WORKERS;
 	options->input_delimiter = '\n';
 	options->show_info       = DEFAULT_SHOW_INFO;
-	options->prompt_results  = 0;
+	options->info            = 0;
 	options->border          = 0;
 	options->border_label    = NULL;
 	options->color_spec      = NULL;
@@ -254,8 +254,8 @@ void options_parse(options_t *options, int argc, char *argv[]) {
 			case 'i':
 				options->show_info = 1;
 				break;
-			case OPT_PROMPT_RESULTS:
-				options->prompt_results = 1;
+			case OPT_INFO:
+				options->info = 1;
 				break;
 			case OPT_BORDER:
 				options->border = 1;

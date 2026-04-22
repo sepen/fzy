@@ -21,7 +21,7 @@ typedef struct {
 	unsigned int workers;
 	char input_delimiter;
 	int show_info;
-	int prompt_results;
+	int info;
 	int border;
 	const char *border_label;
 	const char *color_spec;

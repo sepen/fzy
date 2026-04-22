@@ -119,8 +119,8 @@ static size_t tty_str_vis_prefix_bytes(const char *s, size_t maxcol) {
 	return i;
 }
 
-static void print_prompt_results_suffix(tty_t *tty, const options_t *options, const choices_t *choices) {
-	if (!options->prompt_results)
+static void print_prompt_info_suffix(tty_t *tty, const options_t *options, const choices_t *choices) {
+	if (!options->info)
 		return;
 	unsigned long total = choices->size ? (unsigned long)choices->size : 1UL;
 	tty_printf(tty, " < %lu/%lu", (unsigned long)choices->available, total);
@@ -408,11 +408,11 @@ static void draw(tty_interface_t *state) {
 	else
 		inner_colors(tty, options);
 	fputs_prompt_query(tty, options, options->prompt, state->search);
-	if (options->prompt_results) {
+	if (options->info) {
 		if (state->search[0])
 			tty_putc(tty, ' ');
 		inner_colors(tty, options);
-		print_prompt_results_suffix(tty, options, choices);
+		print_prompt_info_suffix(tty, options, choices);
 	}
 	tty_clearline(tty);
 	border_right(tty, options);
@@ -501,12 +501,12 @@ static void draw(tty_interface_t *state) {
 		inner_colors(tty, options);
 	/* Redraw prompt+query once from the inner column: cursor-only motion leaves some
 	 * terminals with a corrupted line; reprinting after EL avoids duplicate full lines
-	 * (--prompt-results) and stray characters (plain prompt). */
+	 * (--info) and stray characters (plain prompt). */
 	tty_clearline(tty);
 	fputs_prompt_query(tty, options, options->prompt, state->search);
-	if (options->prompt_results) {
+	if (options->info) {
 		inner_colors(tty, options);
-		print_prompt_results_suffix(tty, options, choices);
+		print_prompt_info_suffix(tty, options, choices);
 	}
 	{
 		int base = bordered ? 2 : 0;
