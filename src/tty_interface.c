@@ -119,11 +119,28 @@ static size_t tty_str_vis_prefix_bytes(const char *s, size_t maxcol) {
 	return i;
 }
 
+static void restore_after_info_color(tty_t *tty, const options_t *opt) {
+	if (!opt->color_sgr_info[0])
+		return;
+	if (opt->color_sgr_fg[0]) {
+		fputs(opt->color_sgr_fg, tty->fout);
+		tty_invalidate_fg(tty);
+	} else {
+		tty_setfg(tty, TTY_COLOR_NORMAL);
+	}
+}
+
 static void print_prompt_info_suffix(tty_t *tty, const options_t *options, const choices_t *choices) {
 	if (options->info_mode != FZY_INFO_INLINE)
 		return;
 	unsigned long total = choices->size ? (unsigned long)choices->size : 1UL;
+	if (options->color_sgr_info[0]) {
+		fputs(options->color_sgr_info, tty->fout);
+		tty_invalidate_fg(tty);
+	}
 	tty_printf(tty, " < %lu/%lu", (unsigned long)choices->available, total);
+	if (options->color_sgr_info[0])
+		restore_after_info_color(tty, options);
 }
 
 static const char *g_border_tl;
@@ -363,10 +380,16 @@ static void draw_match_stats_line(tty_t *tty, const options_t *options, const ch
 		inner_colors(tty, options);
 	unsigned long av = (unsigned long)choices->available;
 	unsigned long sz = (unsigned long)choices->size;
+	if (options->color_sgr_info[0]) {
+		fputs(options->color_sgr_info, tty->fout);
+		tty_invalidate_fg(tty);
+	}
 	if (bracketed)
 		tty_printf(tty, "[%lu/%lu]", av, sz);
 	else
 		tty_printf(tty, "%lu/%lu", av, sz);
+	if (options->color_sgr_info[0])
+		restore_after_info_color(tty, options);
 	tty_clearline(tty);
 	border_right(tty, options);
 	if (bordered)
@@ -399,7 +422,13 @@ static void print_prompt_info_inline_right(tty_t *tty, const options_t *options,
 	inner_colors(tty, options);
 	tty_setnowrap(tty);
 	tty_setcol(tty, col);
+	if (options->color_sgr_info[0]) {
+		fputs(options->color_sgr_info, tty->fout);
+		tty_invalidate_fg(tty);
+	}
 	tty_printf(tty, "%s", buf);
+	if (options->color_sgr_info[0])
+		restore_after_info_color(tty, options);
 }
 
 static void draw(tty_interface_t *state) {

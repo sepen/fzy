@@ -14,6 +14,7 @@
 #define OPT_BORDER 259
 #define OPT_COLOR 262
 #define OPT_BORDER_LABEL 263
+#define OPT_NO_COLOR 264
 
 #define FZY_DEFAULT_BORDER_SGR "\033[38;5;240m"
 
@@ -35,6 +36,7 @@ static const char *usage_str =
     "     --border             Draw a padded box (Unicode lines if UTF-8 locale)\n"
     "     --border-label=LABEL Label for the top border (with --border; truncated if too wide)\n"
     "     --color=SPEC         Colorize with fg:N,bg:N,etc (comma-separated; N=color-name or 0-255)\n"
+    "     --no-color           Disable ANSI colors (overrides default theme and --color)\n"
     " -h, --help     Display this help and exit\n"
     " -v, --version  Output version information and exit\n";
 
@@ -58,6 +60,7 @@ static struct option longopts[] = {{"show-matches", required_argument, NULL, 'e'
 				   {"border", no_argument, NULL, OPT_BORDER},
 				   {"border-label", required_argument, NULL, OPT_BORDER_LABEL},
 				   {"color", required_argument, NULL, OPT_COLOR},
+				   {"no-color", no_argument, NULL, OPT_NO_COLOR},
 				   {"help", no_argument, NULL, 'h'},
 				   {NULL, 0, NULL, 0}};
 
@@ -104,13 +107,30 @@ static int color_value_to_index(const char *val, int *idx) {
 	return -1;
 }
 
-static void options_apply_color_spec(options_t *options) {
-	options->color_sgr_fg[0] = '\0';
-	options->color_sgr_bg[0] = '\0';
-	options->color_sgr_prompt[0] = '\0';
-	options->color_sgr_header[0] = '\0';
+static void options_apply_default_theme(options_t *options) {
+	if (!options->use_color) {
+		options->color_sgr_fg[0]     = '\0';
+		options->color_sgr_bg[0]     = '\0';
+		options->color_sgr_prompt[0] = '\0';
+		options->color_sgr_header[0] = '\0';
+		options->color_sgr_info[0]   = '\0';
+		options->color_sgr_label[0]  = '\0';
+		options->color_sgr_border[0] = '\0';
+		return;
+	}
+	snprintf(options->color_sgr_prompt, FZY_COLOR_SGR_LEN, "\033[38;5;153m");
+	snprintf(options->color_sgr_info, FZY_COLOR_SGR_LEN, "\033[38;5;144m");
+	snprintf(options->color_sgr_header, FZY_COLOR_SGR_LEN, "\033[38;5;109m");
+	options->color_sgr_fg[0]    = '\0';
+	options->color_sgr_bg[0]    = '\0';
 	options->color_sgr_label[0] = '\0';
 	snprintf(options->color_sgr_border, FZY_COLOR_SGR_LEN, "%s", FZY_DEFAULT_BORDER_SGR);
+}
+
+static void options_apply_color_spec(options_t *options) {
+	if (!options->use_color)
+		return;
+	options_apply_default_theme(options);
 	char *spec = strdup(options->color_spec);
 	if (!spec) {
 		perror("strdup");
@@ -152,11 +172,13 @@ static void options_apply_color_spec(options_t *options) {
 			snprintf(options->color_sgr_prompt, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
 		} else if (!strcasecmp(key, "header")) {
 			snprintf(options->color_sgr_header, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+		} else if (!strcasecmp(key, "info")) {
+			snprintf(options->color_sgr_info, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
 		} else if (!strcasecmp(key, "label") || !strcasecmp(key, "border-label")) {
 			snprintf(options->color_sgr_label, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
 		} else {
 			fprintf(stderr,
-				"Unknown --color key: %s (use fg, bg, border, prompt, header, label)\n",
+				"Unknown --color key: %s (use fg, bg, border, prompt, header, info, label)\n",
 				key);
 			free(spec);
 			exit(EXIT_FAILURE);
@@ -185,12 +207,8 @@ void options_init(options_t *options) {
 	options->border          = 0;
 	options->border_label    = NULL;
 	options->color_spec      = NULL;
-	options->color_sgr_fg[0] = '\0';
-	options->color_sgr_bg[0] = '\0';
-	options->color_sgr_prompt[0] = '\0';
-	options->color_sgr_header[0] = '\0';
-	options->color_sgr_label[0] = '\0';
-	snprintf(options->color_sgr_border, FZY_COLOR_SGR_LEN, "%s", FZY_DEFAULT_BORDER_SGR);
+	options->use_color       = 1;
+	options_apply_default_theme(options);
 }
 
 void options_parse(options_t *options, int argc, char *argv[]) {
@@ -291,8 +309,13 @@ void options_parse(options_t *options, int argc, char *argv[]) {
 					usage(argv[0]);
 					exit(EXIT_FAILURE);
 				}
+				options->use_color  = 1;
 				options->color_spec = optarg;
 				options_apply_color_spec(options);
+				break;
+			case OPT_NO_COLOR:
+				options->use_color = 0;
+				options_apply_default_theme(options);
 				break;
 			case 'h':
 			default:

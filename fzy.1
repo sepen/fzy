@@ -70,7 +70,11 @@ Label for the top border (with \fB\-\-border\fR; truncated if too wide). \fILABE
 .
 .TP
 .B \-\-color =\fISPEC\fR
-Colorize with \fBfg\fR\fB:\fR\fIN\fR, \fBbg\fR\fB:\fR\fIN\fR, etc. (comma-separated; \fIN\fR=color-name or \fB0\fR\-\fB255\fR). Keys include \fBfg\fR, \fBbg\fR, \fBborder\fR, \fBprompt\fR, \fBheader\fR, \fBlabel\fR (alias \fBborder-label\fR). Names include \fBblack\fR, \fBred\fR, \fBgreen\fR, \fByellow\fR, \fBblue\fR, \fBmagenta\fR, \fBpurple\fR, \fBcyan\fR, \fBwhite\fR, \fBgray\fR/\fBgrey\fR, \fBorange\fR, and \fBpink\fR. If \fBborder\fR is omitted, border glyphs stay gray. Example: \fB\-\-color 'label:132,prompt:146,header:180,bg:235,fg:250'\fR.
+Colorize with \fBfg\fR\fB:\fR\fIN\fR, \fBbg\fR\fB:\fR\fIN\fR, etc. (comma-separated; \fIN\fR=color-name or \fB0\fR\-\fB255\fR). Keys include \fBfg\fR, \fBbg\fR, \fBborder\fR, \fBprompt\fR, \fBheader\fR, \fBinfo\fR (match-count text), and \fBlabel\fR (alias \fBborder-label\fR). Names include \fBblack\fR, \fBred\fR, \fBgreen\fR, \fByellow\fR, \fBblue\fR, \fBmagenta\fR, \fBpurple\fR, \fBcyan\fR, \fBwhite\fR, \fBgray\fR/\fBgrey\fR, \fBorange\fR, and \fBpink\fR. When colors are enabled (default), the theme uses \fBprompt\fR \fB110\fR, \fBinfo\fR \fB143\fR, and \fBheader\fR \fB109\fR unless overridden here; border defaults to gray. Example: \fB\-\-color 'label:132,prompt:146,header:180,bg:235,fg:250'\fR.
+.
+.TP
+.B \-\-no-color
+Disable ANSI colors (no default theme and no \fB\-\-color\fR output). A later \fB\-\-color\fR on the same command line turns colors back on.
 .
 .TP
 .BR \-h ", " \-\-help

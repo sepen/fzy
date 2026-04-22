@@ -30,6 +30,7 @@ typedef struct {
 	int show_info;
 	fzy_info_mode_t info_mode;
 	int border;
+	int use_color;
 	const char *border_label;
 	const char *color_spec;
 	char color_sgr_fg[FZY_COLOR_SGR_LEN];
@@ -37,6 +38,7 @@ typedef struct {
 	char color_sgr_border[FZY_COLOR_SGR_LEN];
 	char color_sgr_prompt[FZY_COLOR_SGR_LEN];
 	char color_sgr_header[FZY_COLOR_SGR_LEN];
+	char color_sgr_info[FZY_COLOR_SGR_LEN];
 	char color_sgr_label[FZY_COLOR_SGR_LEN];
 } options_t;
 

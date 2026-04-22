@@ -522,6 +522,7 @@ Usage: fzy [OPTION]...
      --border             Draw a padded box (Unicode lines if UTF-8 locale)
      --border-label=LABEL Label for the top border (with --border; truncated if too wide)
      --color=SPEC         Colorize with fg:N,bg:N,etc (comma-separated; N=color-name or 0-255)
+     --no-color           Disable ANSI colors (overrides default theme and --color)
  -h, --help     Display this help and exit
  -v, --version  Output version information and exit
 TTY
