@@ -229,16 +229,16 @@ class FzyTest < Minitest::Test
   end
 
   def test_prompt_info
-    @tty = interactive_fzy(input: %w[foo bar baz], args: "--info -l 2")
+    @tty = interactive_fzy(input: %w[foo bar baz], args: "--info=inline -l 2")
     @tty.assert_matches "> < 3/3\nfoo\nbar"
     @tty.send_keys("foo")
-    @tty.assert_matches "> foo  < 1/3\nfoo"
+    @tty.assert_matches "> foo < 1/3\nfoo"
   end
 
   def test_prompt_info_tight_prompt
-    @tty = interactive_fzy(input: %w[a b], args: '--info -p ">" -l 2')
+    @tty = interactive_fzy(input: %w[a b], args: '--info=inline -p ">" -l 2')
     @tty.send_keys("a")
-    @tty.assert_matches "> a  < 2/2\na"
+    @tty.assert_matches "> a < 2/2\na"
   end
 
   def test_prompt
@@ -272,7 +272,7 @@ class FzyTest < Minitest::Test
   end
 
   def test_large_input
-    @tty = TTYtest.new_terminal(%{seq 100000 | #{FZY_PATH} -l 3})
+    @tty = TTYtest.new_terminal(%{seq 100000 | #{FZY_PATH} --info=hidden -l 3})
     @tty.send_keys('34')
     @tty.assert_matches "> 34\n34\n340\n341"
 
@@ -288,11 +288,11 @@ class FzyTest < Minitest::Test
     @tty.send_keys('foo')
     @tty.assert_matches "> foo\nfoo"
 
-    @tty = TTYtest.new_terminal(%{seq 100000 | #{FZY_PATH} -j1 -l3})
+    @tty = TTYtest.new_terminal(%{seq 100000 | #{FZY_PATH} --info=hidden -j1 -l3})
     @tty.send_keys('34')
     @tty.assert_matches "> 34\n34\n340\n341"
 
-    @tty = TTYtest.new_terminal(%{seq 100000 | #{FZY_PATH} -j200 -l3})
+    @tty = TTYtest.new_terminal(%{seq 100000 | #{FZY_PATH} --info=hidden -j200 -l3})
     @tty.send_keys('34')
     @tty.assert_matches "> 34\n34\n340\n341"
   end
@@ -354,7 +354,7 @@ class FzyTest < Minitest::Test
 
   # https://github.com/jhawthorn/fzy/issues/81
   def test_slow_stdin_fast_user
-    @tty = TTYtest.new_terminal(%{(sleep 0.5; echo aa; echo bc; echo bd) | #{FZY_PATH}})
+    @tty = TTYtest.new_terminal(%{(sleep 0.5; echo aa; echo bc; echo bd) | #{FZY_PATH} --info=hidden})
 
     # Before input has all come in, but wait for fzy to at least start
     sleep 0.1
@@ -472,6 +472,28 @@ class FzyTest < Minitest::Test
     TTY
   end
 
+  def test_info_default_with_header
+    @tty = interactive_fzy(input: %w[foo bar], args: "--info=default --header=H -l 2")
+    @tty.assert_matches ">\n2/2\nH\nfoo\nbar"
+  end
+
+  def test_info_default_no_header
+    @tty = interactive_fzy(input: %w[foo bar baz], args: "--info=default -l 3")
+    @tty.assert_matches ">\n3/3\nfoo\nbar\nbaz"
+  end
+
+  def test_no_explicit_info_uses_default
+    @tty = TTYtest.new_terminal(%{printf "foo\\nbar" | #{FZY_PATH} -l 4})
+    @tty.assert_matches ">\n2/2\nfoo\nbar"
+  end
+
+  def test_prompt_info_inline_right
+    @tty = TTYtest.new_terminal(
+      %{printf "foo\\nbar\\nbaz" | env COLUMNS=40 #{FZY_PATH} --info=inline-right -l 2}
+    )
+    @tty.assert_matches "> #{' ' * 35}3/3\nfoo\nbar"
+  end
+
   def test_show_info
     @tty = interactive_fzy(input: %w[foo bar baz], args: "-i -l 3")
     @tty.assert_matches ">\n[3/3]\nfoo\nbar\nbaz"
@@ -488,7 +510,8 @@ Usage: fzy [OPTION]...
  -l, --lines=LINES        Result lines (default: fill terminal height)
  -H, --header=HEADER      String to print as item list header
  -p, --prompt=PROMPT      Input prompt (default '> ')
-     --info               Append " < M/T" to prompt (matches / total items)
+     --info=STYLE           Finder info style
+                          [default|hidden|inline|inline-right]
  -q, --query=QUERY        Use QUERY as the initial search string
  -e, --show-matches=QUERY Output the sorted matches of QUERY
  -t, --tty=TTY            Specify file to use as TTY device (default /dev/tty)
@@ -512,6 +535,9 @@ TTY
     fzy_args = args.strip
     unless fzy_args =~ /(^|\s)(-l|--lines)(=|\s)/
       fzy_args = "#{fzy_args} -l 10".strip
+    end
+    unless fzy_args =~ /(^|\s)--info(=|\s)/
+      fzy_args = "--info=hidden #{fzy_args}".strip
     end
     cmd << %{printf "#{input.join("\\n")}" | #{FZY_PATH} #{fzy_args}}
     cmd << %{echo "#{after}"} if after

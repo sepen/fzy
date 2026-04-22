@@ -57,6 +57,8 @@ int main(int argc, char *argv[]) {
 		unsigned int adj  = 1;
 		if (options.show_info)
 			adj++;
+		if (options.info_mode == FZY_INFO_DEFAULT)
+			adj++;
 		if (options.header)
 			adj++;
 		if (options.border && tty_getwidth(&tty) >= 5)

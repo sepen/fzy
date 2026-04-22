@@ -23,7 +23,8 @@ static const char *usage_str =
     " -l, --lines=LINES        Result lines (default: fill terminal height)\n"
     " -H, --header=HEADER      String to print as item list header\n"
     " -p, --prompt=PROMPT      Input prompt (default '> ')\n"
-    "     --info               Append \" < M/T\" to prompt (matches / total items)\n"
+    "     --info=STYLE           Finder info style\n"
+    "                          [default|hidden|inline|inline-right]\n"
     " -q, --query=QUERY        Use QUERY as the initial search string\n"
     " -e, --show-matches=QUERY Output the sorted matches of QUERY\n"
     " -t, --tty=TTY            Specify file to use as TTY device (default /dev/tty)\n"
@@ -53,7 +54,7 @@ static struct option longopts[] = {{"show-matches", required_argument, NULL, 'e'
 				   {"benchmark", optional_argument, NULL, 'b'},
 				   {"workers", required_argument, NULL, 'j'},
 				   {"show-info", no_argument, NULL, 'i'},
-				   {"info", no_argument, NULL, OPT_INFO},
+				   {"info", required_argument, NULL, OPT_INFO},
 				   {"border", no_argument, NULL, OPT_BORDER},
 				   {"border-label", required_argument, NULL, OPT_BORDER_LABEL},
 				   {"color", required_argument, NULL, OPT_COLOR},
@@ -180,7 +181,7 @@ void options_init(options_t *options) {
 	options->workers         = DEFAULT_WORKERS;
 	options->input_delimiter = '\n';
 	options->show_info       = DEFAULT_SHOW_INFO;
-	options->info            = 0;
+	options->info_mode       = FZY_INFO_DEFAULT;
 	options->border          = 0;
 	options->border_label    = NULL;
 	options->color_spec      = NULL;
@@ -254,9 +255,30 @@ void options_parse(options_t *options, int argc, char *argv[]) {
 			case 'i':
 				options->show_info = 1;
 				break;
-			case OPT_INFO:
-				options->info = 1;
-				break;
+			case OPT_INFO: {
+				const char *m = optarg;
+				if (!m || !*m) {
+					fprintf(stderr,
+						"--info requires an argument (default, hidden, inline, or inline-right)\n");
+					usage(argv[0]);
+					exit(EXIT_FAILURE);
+				}
+				if (!strcasecmp(m, "hidden"))
+					options->info_mode = FZY_INFO_HIDDEN;
+				else if (!strcasecmp(m, "default"))
+					options->info_mode = FZY_INFO_DEFAULT;
+				else if (!strcasecmp(m, "inline"))
+					options->info_mode = FZY_INFO_INLINE;
+				else if (!strcasecmp(m, "inline-right"))
+					options->info_mode = FZY_INFO_INLINE_RIGHT;
+				else {
+					fprintf(stderr,
+						"Invalid --info: %s (use default, hidden, inline, or inline-right)\n",
+						m);
+					usage(argv[0]);
+					exit(EXIT_FAILURE);
+				}
+			} break;
 			case OPT_BORDER:
 				options->border = 1;
 				break;

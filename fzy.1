@@ -29,8 +29,8 @@ String to print as item list header (interactive mode only, between the prompt a
 Input prompt (default '> ')
 .
 .TP
-.B \-\-info
-Append \fB " < \fIM\fR/\fIT\fR\fB"\fR to prompt (matches / total items).
+.B \-\-info =\fISTYLE\fR
+Finder info style: \fBdefault\fR, \fBhidden\fR, \fBinline\fR, or \fBinline-right\fR. \fBdefault\fR is used when \fB\-\-info\fR is omitted: print \fIM\fR/\fIT\fR (no brackets) on its own line below the prompt and above \fB\-\-header\fR (if any). \fBhidden\fR disables that line. \fBinline\fR appends \fB " < \fIM\fR/\fIT\fR\fB"\fR after the query. \fBinline-right\fR right-aligns \fIM\fR/\fIT\fR on the prompt row (no leading \fB<\fR). \fB\-i\fR/\fB\-\-show-info\fR still draws \fB[\fIM\fR/\fIT\fR\fB]\fR after the header.
 .
 .TP
 .BR \-q ", " \-\-query =\fIQUERY\fR

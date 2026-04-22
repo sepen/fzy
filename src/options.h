@@ -7,6 +7,13 @@
 extern "C" {
 #endif
 
+typedef enum {
+	FZY_INFO_HIDDEN = 0,
+	FZY_INFO_DEFAULT = 1,
+	FZY_INFO_INLINE = 2,
+	FZY_INFO_INLINE_RIGHT = 3,
+} fzy_info_mode_t;
+
 typedef struct {
 	int benchmark;
 	const char *filter;
@@ -21,7 +28,7 @@ typedef struct {
 	unsigned int workers;
 	char input_delimiter;
 	int show_info;
-	int info;
+	fzy_info_mode_t info_mode;
 	int border;
 	const char *border_label;
 	const char *color_spec;

@@ -120,7 +120,7 @@ static size_t tty_str_vis_prefix_bytes(const char *s, size_t maxcol) {
 }
 
 static void print_prompt_info_suffix(tty_t *tty, const options_t *options, const choices_t *choices) {
-	if (!options->info)
+	if (options->info_mode != FZY_INFO_INLINE)
 		return;
 	unsigned long total = choices->size ? (unsigned long)choices->size : 1UL;
 	tty_printf(tty, " < %lu/%lu", (unsigned long)choices->available, total);
@@ -276,7 +276,8 @@ static void clear(tty_interface_t *state) {
 		tty_setcol(tty, 0);
 	}
 	size_t line = 0;
-	unsigned int nclear = options->num_lines + (options->show_info ? 1 : 0);
+	unsigned int nclear = options->num_lines + (options->show_info ? 1 : 0) +
+			      (options->info_mode == FZY_INFO_DEFAULT ? 1 : 0);
 	if (options->header)
 		nclear++;
 	if (has_ui_border(tty, options))
@@ -351,6 +352,56 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected,
 		fputs(options->color_sgr_fg, tty->fout);
 }
 
+static void draw_match_stats_line(tty_t *tty, const options_t *options, const choices_t *choices,
+				  int bordered, int bracketed) {
+	tty_printf(tty, "\n");
+	tty_setnormal(tty);
+	border_left(tty, options);
+	if (bordered)
+		border_inner_pad(tty, options);
+	else
+		inner_colors(tty, options);
+	unsigned long av = (unsigned long)choices->available;
+	unsigned long sz = (unsigned long)choices->size;
+	if (bracketed)
+		tty_printf(tty, "[%lu/%lu]", av, sz);
+	else
+		tty_printf(tty, "%lu/%lu", av, sz);
+	tty_clearline(tty);
+	border_right(tty, options);
+	if (bordered)
+		tty_setwrap(tty);
+}
+
+static void print_prompt_info_inline_right(tty_t *tty, const options_t *options,
+					   const choices_t *choices, const char *query, int bordered) {
+	unsigned long total = choices->size ? (unsigned long)choices->size : 1UL;
+	char buf[40];
+	int n = snprintf(buf, sizeof buf, "%lu/%lu", (unsigned long)choices->available, total);
+	if (n <= 0 || n >= (int)sizeof buf)
+		return;
+	size_t W = tty_getwidth(tty);
+	int inner_lo = 0;
+	int inner_cols = (int)W;
+	if (bordered && (int)W >= 5) {
+		inner_lo = 2;
+		inner_cols = (int)W - 4;
+	}
+	size_t vis_used = tty_str_vis_columns(options->prompt) + tty_str_vis_columns(query);
+	int right = inner_lo + inner_cols - n;
+	int col = right;
+	if (inner_lo + (int)vis_used > col)
+		col = inner_lo + (int)vis_used;
+	if (col + n > inner_lo + inner_cols)
+		col = inner_lo + inner_cols - n;
+	if (col < inner_lo)
+		col = inner_lo;
+	inner_colors(tty, options);
+	tty_setnowrap(tty);
+	tty_setcol(tty, col);
+	tty_printf(tty, "%s", buf);
+}
+
 static void draw(tty_interface_t *state) {
 	tty_t *tty = state->tty;
 	choices_t *choices = state->choices;
@@ -365,6 +416,8 @@ static void draw(tty_interface_t *state) {
 		unsigned int tty_h = (unsigned int)tty_getheight(tty);
 		unsigned int adj  = 1;
 		if (options->show_info)
+			adj++;
+		if (options->info_mode == FZY_INFO_DEFAULT)
 			adj++;
 		if (options->header)
 			adj++;
@@ -408,16 +461,19 @@ static void draw(tty_interface_t *state) {
 	else
 		inner_colors(tty, options);
 	fputs_prompt_query(tty, options, options->prompt, state->search);
-	if (options->info) {
-		if (state->search[0])
-			tty_putc(tty, ' ');
+	if (options->info_mode == FZY_INFO_INLINE) {
 		inner_colors(tty, options);
 		print_prompt_info_suffix(tty, options, choices);
+	} else if (options->info_mode == FZY_INFO_INLINE_RIGHT) {
+		print_prompt_info_inline_right(tty, options, choices, state->search, bordered);
 	}
 	tty_clearline(tty);
 	border_right(tty, options);
 	if (bordered)
 		tty_setwrap(tty);
+
+	if (options->info_mode == FZY_INFO_DEFAULT)
+		draw_match_stats_line(tty, options, choices, bordered, 0);
 
 	if (options->header) {
 		tty_printf(tty, "\n");
@@ -446,20 +502,8 @@ static void draw(tty_interface_t *state) {
 			tty_setwrap(tty);
 	}
 
-	if (options->show_info) {
-		tty_printf(tty, "\n");
-		tty_setnormal(tty);
-		border_left(tty, options);
-		if (bordered)
-			border_inner_pad(tty, options);
-		else
-			inner_colors(tty, options);
-		tty_printf(tty, "[%lu/%lu]", (unsigned long)choices->available, (unsigned long)choices->size);
-		tty_clearline(tty);
-		border_right(tty, options);
-		if (bordered)
-			tty_setwrap(tty);
-	}
+	if (options->show_info)
+		draw_match_stats_line(tty, options, choices, bordered, 1);
 
 	for (size_t i = start; i < start + num_lines; i++) {
 		tty_printf(tty, "\n");
@@ -484,7 +528,8 @@ static void draw(tty_interface_t *state) {
 	}
 
 	{
-		unsigned int above_list = (options->header ? 1 : 0) + (options->show_info ? 1 : 0);
+		unsigned int above_list = (options->header ? 1 : 0) + (options->show_info ? 1 : 0) +
+					  (options->info_mode == FZY_INFO_DEFAULT ? 1 : 0);
 		unsigned int move = num_lines + above_list;
 		if (bordered)
 			move++;
@@ -501,12 +546,14 @@ static void draw(tty_interface_t *state) {
 		inner_colors(tty, options);
 	/* Redraw prompt+query once from the inner column: cursor-only motion leaves some
 	 * terminals with a corrupted line; reprinting after EL avoids duplicate full lines
-	 * (--info) and stray characters (plain prompt). */
+	 * (--info=inline / --info=inline-right) and stray characters (plain prompt). */
 	tty_clearline(tty);
 	fputs_prompt_query(tty, options, options->prompt, state->search);
-	if (options->info) {
+	if (options->info_mode == FZY_INFO_INLINE) {
 		inner_colors(tty, options);
 		print_prompt_info_suffix(tty, options, choices);
+	} else if (options->info_mode == FZY_INFO_INLINE_RIGHT) {
+		print_prompt_info_inline_right(tty, options, choices, state->search, bordered);
 	}
 	{
 		int base = bordered ? 2 : 0;
