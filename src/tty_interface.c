@@ -57,24 +57,12 @@ static size_t tty_str_vis_columns(const char *s) {
 	return w;
 }
 
-/* With --prompt-results, one column between prompt and query if prompt lacks trailing space. */
-static size_t prompt_results_query_gap(const options_t *opt, const char *prompt) {
-	if (!opt->prompt_results)
-		return 0;
-	size_t n = strlen(prompt);
-	if (n > 0 && isspace((unsigned char)prompt[n - 1]))
-		return 0;
-	return 1;
-}
-
 static void fputs_prompt_query(tty_t *tty, const options_t *opt, const char *prompt, const char *query) {
 	if (opt->color_sgr_prompt[0]) {
 		fputs(opt->color_sgr_prompt, tty->fout);
 		tty_invalidate_fg(tty);
 	}
 	fputs(prompt, tty->fout);
-	if (prompt_results_query_gap(opt, prompt))
-		fputc(' ', tty->fout);
 	if (opt->color_sgr_prompt[0]) {
 		if (opt->color_sgr_fg[0]) {
 			fputs(opt->color_sgr_fg, tty->fout);
@@ -517,15 +505,12 @@ static void draw(tty_interface_t *state) {
 	tty_clearline(tty);
 	fputs_prompt_query(tty, options, options->prompt, state->search);
 	if (options->prompt_results) {
-		if (state->search[0])
-			tty_putc(tty, ' ');
 		inner_colors(tty, options);
 		print_prompt_results_suffix(tty, options, choices);
 	}
 	{
 		int base = bordered ? 2 : 0;
-		int col = base + (int)tty_str_vis_columns(options->prompt) +
-			  (int)prompt_results_query_gap(options, options->prompt);
+		int col = base + (int)tty_str_vis_columns(options->prompt);
 		size_t len = strlen(state->search);
 		size_t c = state->cursor;
 		if (c > len)
