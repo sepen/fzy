@@ -62,7 +62,7 @@ Show selection info line.
 .
 .TP
 .B \-\-border
-Draw a padded box (Unicode lines if UTF-8 locale). Uses Unicode box-drawing characters when \fBTERM\fR is usable and the locale character set is UTF-8; otherwise \fB+\fR, \fB-\fR, and \fB|\fR. One space of padding inside each vertical side. Requires at least five terminal columns. Redraws on resize. Border glyphs use gray by default unless overridden with \fB\-\-color\fR \fBborder\fR.
+Draw a padded box. Unicode box-drawing characters are used when \fBTERM\fR is not \fBdumb\fR or \fBunknown\fR and any of: the locale charset is UTF-8 (\fBnl_langinfo\fR(\fBCODESET\fR), spelling-insensitive); \fBLC_ALL\fR, \fBLC_CTYPE\fR, or \fBLANG\fR contains \fButf-8\fR or \fB.utf8\fR; or \fBTERM\fR looks like a common UTF-8 terminal (e.g. \fBxterm*\fR, \fBtmux\fR, \fB*256color*\fR). Otherwise \fB+\fR, \fB-\fR, and \fB|\fR. Without \fBLANG\fR/\fBLC_*\fR, libc often reports \fBUS-ASCII\fR even for a UTF-8 terminal; the \fBTERM\fR heuristic covers that. Exporting \fBLANG\fR=\fIxx\fR\fB.UTF-8\fR is still the most reliable fix on odd systems. One space of padding inside each vertical side. Requires at least five terminal columns. Redraws on resize. Border glyphs use gray by default unless overridden with \fB\-\-color\fR \fBborder\fR.
 .
 .TP
 .B \-\-border-label =\fILABEL\fR

@@ -190,15 +190,88 @@ static const char *g_border_br;
 static const char *g_border_h;
 static const char *g_border_v;
 
-static void border_update_glyphs(void) {
+/* True only for terminals that cannot render UTF-8 box drawing. */
+static int border_term_blocks_unicode(void) {
 	const char *term = getenv("TERM");
-	int unicode = term && strcmp(term, "dumb") != 0 && strcmp(term, "unknown") != 0;
-	if (unicode) {
-		const char *codeset = nl_langinfo(CODESET);
-		if (!codeset || strcasecmp(codeset, "UTF-8") != 0)
-			unicode = 0;
+	if (!term || !*term)
+		return 0;
+	return !strcmp(term, "dumb") || !strcmp(term, "unknown");
+}
+
+/* nl_langinfo(CODESET) spelling varies (UTF-8, UTF8, utf8, …). */
+static int locale_codeset_is_utf8(void) {
+	const char *cs = nl_langinfo(CODESET);
+	if (!cs || !*cs)
+		return 0;
+	char norm[48];
+	size_t j = 0;
+	for (size_t i = 0; cs[i] && j + 1 < sizeof norm; i++) {
+		unsigned c = (unsigned char)cs[i];
+		if (c != '-' && c != '_')
+			norm[j++] = (char)tolower(c);
 	}
-	if (unicode) {
+	norm[j] = '\0';
+	return strcmp(norm, "utf8") == 0;
+}
+
+/* LANG / LC_* may still say UTF-8 while nl_langinfo is narrow on some setups. */
+static int env_locale_vars_hint_utf8(void) {
+	static const char *vars[] = {"LC_ALL", "LC_CTYPE", "LANG"};
+	for (size_t i = 0; i < sizeof vars / sizeof vars[0]; i++) {
+		const char *v = getenv(vars[i]);
+		if (!v || !*v)
+			continue;
+		if (strcasestr(v, "utf-8") || strcasestr(v, ".utf8"))
+			return 1;
+	}
+	return 0;
+}
+
+/*
+ * Without LANG, setlocale(LC_ALL,"") often leaves CODESET as US-ASCII even though the
+ * terminal emulator is UTF-8. Prefer box-drawing for common modern TERM values.
+ */
+static int border_term_suggests_utf8_capable(void) {
+	const char *t = getenv("TERM");
+	if (!t || !*t)
+		return 1;
+	if (strncasecmp(t, "xterm", 5) == 0)
+		return 1;
+	if (strncasecmp(t, "alacritty", 9) == 0)
+		return 1;
+	if (strncasecmp(t, "wezterm", 7) == 0)
+		return 1;
+	if (strncasecmp(t, "rxvt", 4) == 0)
+		return 1;
+	if (strncasecmp(t, "screen", 6) == 0)
+		return 1;
+	if (strncasecmp(t, "tmux", 4) == 0)
+		return 1;
+	if (strncasecmp(t, "ghostty", 7) == 0)
+		return 1;
+	if (strncasecmp(t, "foot", 4) == 0)
+		return 1;
+	if (strncasecmp(t, "konsole", 7) == 0)
+		return 1;
+	if (strncasecmp(t, "gnome", 5) == 0 || strncasecmp(t, "vte", 3) == 0)
+		return 1;
+	if (strstr(t, "256color") != NULL || strcasestr(t, "truecolor") != NULL)
+		return 1;
+	return 0;
+}
+
+static int border_use_unicode_box_drawing(void) {
+	if (border_term_blocks_unicode())
+		return 0;
+	if (locale_codeset_is_utf8())
+		return 1;
+	if (env_locale_vars_hint_utf8())
+		return 1;
+	return border_term_suggests_utf8_capable();
+}
+
+static void border_update_glyphs(void) {
+	if (border_use_unicode_box_drawing()) {
 		g_border_tl = "\xe2\x94\x8c";
 		g_border_tr = "\xe2\x94\x90";
 		g_border_bl = "\xe2\x94\x94";
@@ -206,6 +279,7 @@ static void border_update_glyphs(void) {
 		g_border_h  = "\xe2\x94\x80";
 		g_border_v  = "\xe2\x94\x82";
 	} else {
+		/* US-ASCII-style locale and a TERM we do not treat as UTF-8-capable. */
 		g_border_tl = g_border_tr = g_border_bl = g_border_br = "+";
 		g_border_h = "-";
 		g_border_v = "|";
