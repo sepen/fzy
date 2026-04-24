@@ -312,6 +312,10 @@ class FzyTest < Minitest::Test
   def test_non_interactive
     @tty = interactive_fzy(input: %w[foo bar], args: "-e foo", before: "before", after: "after")
     @tty.assert_matches "before\nfoo\nafter"
+
+    # BSD/macOS getopt keeps "=" in optarg for "-e=foo"; must still print matches.
+    @tty = interactive_fzy(input: %w[foo bar], args: "-e=foo", before: "before", after: "after")
+    @tty.assert_matches "before\nfoo\nafter"
   end
 
   def test_moving_text_cursor
@@ -527,7 +531,7 @@ Usage: fzy [OPTION]...
      --border             Draw a padded box (Unicode lines if UTF-8 locale)
      --border-label=LABEL Label for the top border (with --border; truncated if too wide)
      --color=SPEC         Colorize with fg:N,bg:N,fg+:N,bg+:N,... (comma-separated; fg+/bg+ =
-                          selected row; N=color-name or 0-255)
+                          selected row; N=color-name, 0-255 palette index, or #rgb/#rrggbb)
      --no-color           Disable ANSI colors (overrides default theme and --color)
  -h, --help     Display this help and exit
  -v, --version  Output version information and exit

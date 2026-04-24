@@ -42,7 +42,7 @@ static const char *usage_str =
     "     --border             Draw a padded box (Unicode lines if UTF-8 locale)\n"
     "     --border-label=LABEL Label for the top border (with --border; truncated if too wide)\n"
     "     --color=SPEC         Colorize with fg:N,bg:N,fg+:N,bg+:N,... (comma-separated; fg+/bg+ =\n"
-    "                          selected row; N=color-name or 0-255)\n"
+    "                          selected row; N=color-name, 0-255 palette index, or #rgb/#rrggbb)\n"
     "     --no-color           Disable ANSI colors (overrides default theme and --color)\n"
     " -h, --help     Display this help and exit\n"
     " -v, --version  Output version information and exit\n";
@@ -82,16 +82,56 @@ static void trim_in_place(char *s) {
 		s[--n] = '\0';
 }
 
-static int color_value_to_index(const char *val, int *idx) {
-	char buf[64];
+/* Lowercase, strip spaces into buf. Returns -1 if result is empty. */
+static int color_token_normalize(const char *val, char *buf, size_t buflen) {
 	size_t j = 0;
-	for (size_t i = 0; val[i] && j + 1 < sizeof buf; i++) {
+	for (size_t i = 0; val[i] && j + 1 < buflen; i++) {
 		if (!isspace((unsigned char)val[i]))
 			buf[j++] = (char)tolower((unsigned char)val[i]);
 	}
 	buf[j] = '\0';
-	if (buf[0] == '\0')
+	return buf[0] ? 0 : -1;
+}
+
+static int hex_digit_value(int c) {
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'a' && c <= 'f')
+		return c - 'a' + 10;
+	return -1;
+}
+
+/* buf is normalized; accepts #rgb or #rrggbb. */
+static int parse_hex_rgb(const char *buf, int *r, int *g, int *b) {
+	if (buf[0] != '#')
 		return -1;
+	size_t n = strlen(buf);
+	if (n == 4) {
+		int a = hex_digit_value((unsigned char)buf[1]);
+		int b_ = hex_digit_value((unsigned char)buf[2]);
+		int c = hex_digit_value((unsigned char)buf[3]);
+		if (a < 0 || b_ < 0 || c < 0)
+			return -1;
+		*r = a * 17;
+		*g = b_ * 17;
+		*b = c * 17;
+		return 0;
+	}
+	if (n == 7) {
+		for (size_t i = 1; i < 7; i++) {
+			if (hex_digit_value((unsigned char)buf[i]) < 0)
+				return -1;
+		}
+		unsigned long v = strtoul(buf + 1, NULL, 16);
+		*r = (int)((v >> 16) & 0xff);
+		*g = (int)((v >> 8) & 0xff);
+		*b = (int)(v & 0xff);
+		return 0;
+	}
+	return -1;
+}
+
+static int color_palette_index(const char *buf, int *idx) {
 	char *end = NULL;
 	long n = strtol(buf, &end, 10);
 	if (end && *end == '\0' && n >= 0 && n <= 255) {
@@ -115,6 +155,39 @@ static int color_value_to_index(const char *val, int *idx) {
 		}
 	}
 	return -1;
+}
+
+/*
+ * is_bg: 48 vs 38 CSI.
+ * cursor_fg: bold + foreground (selected row text).
+ * Returns 0 on success.
+ */
+static int color_value_to_sgr(const char *val, int is_bg, int cursor_fg, char *out, size_t outlen) {
+	char buf[64];
+	if (color_token_normalize(val, buf, sizeof buf) != 0)
+		return -1;
+	int ix;
+	if (color_palette_index(buf, &ix) == 0) {
+		int n;
+		if (cursor_fg)
+			n = snprintf(out, outlen, "\033[1m\033[38;5;%dm", ix);
+		else if (is_bg)
+			n = snprintf(out, outlen, "\033[48;5;%dm", ix);
+		else
+			n = snprintf(out, outlen, "\033[38;5;%dm", ix);
+		return (n > 0 && (size_t)n < outlen) ? 0 : -1;
+	}
+	int r, g, b;
+	if (parse_hex_rgb(buf, &r, &g, &b) != 0)
+		return -1;
+	int n;
+	if (cursor_fg)
+		n = snprintf(out, outlen, "\033[1m\033[38;2;%d;%d;%dm", r, g, b);
+	else if (is_bg)
+		n = snprintf(out, outlen, "\033[48;2;%d;%d;%dm", r, g, b);
+	else
+		n = snprintf(out, outlen, "\033[38;2;%d;%d;%dm", r, g, b);
+	return (n > 0 && (size_t)n < outlen) ? 0 : -1;
 }
 
 static void options_apply_default_theme(options_t *options) {
@@ -172,34 +245,38 @@ static void options_apply_color_spec(options_t *options) {
 		char *val = colon + 1;
 		trim_in_place(key);
 		trim_in_place(val);
-		int ix;
-		if (color_value_to_index(val, &ix) != 0) {
-			fprintf(stderr, "Unknown color in --color: %s\n", val);
-			free(spec);
-			exit(EXIT_FAILURE);
-		}
+		char *sgr_dest = NULL;
+		int is_bg = 0, cursor_fg = 0;
 		if (!strcasecmp(key, "fg")) {
-			snprintf(options->color_sgr_fg, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+			sgr_dest = options->color_sgr_fg;
 		} else if (!strcasecmp(key, "bg")) {
-			snprintf(options->color_sgr_bg, FZY_COLOR_SGR_LEN, "\033[48;5;%dm", ix);
+			sgr_dest = options->color_sgr_bg;
+			is_bg    = 1;
 		} else if (!strcasecmp(key, "border")) {
-			snprintf(options->color_sgr_border, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+			sgr_dest = options->color_sgr_border;
 		} else if (!strcasecmp(key, "prompt")) {
-			snprintf(options->color_sgr_prompt, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+			sgr_dest = options->color_sgr_prompt;
 		} else if (!strcasecmp(key, "header")) {
-			snprintf(options->color_sgr_header, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+			sgr_dest = options->color_sgr_header;
 		} else if (!strcasecmp(key, "info")) {
-			snprintf(options->color_sgr_info, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+			sgr_dest = options->color_sgr_info;
 		} else if (!strcasecmp(key, "fg+")) {
-			snprintf(options->color_sgr_cursorline_fg, FZY_COLOR_SGR_LEN, "\033[1m\033[38;5;%dm", ix);
+			sgr_dest   = options->color_sgr_cursorline_fg;
+			cursor_fg  = 1;
 		} else if (!strcasecmp(key, "bg+")) {
-			snprintf(options->color_sgr_cursorline_bg, FZY_COLOR_SGR_LEN, "\033[48;5;%dm", ix);
+			sgr_dest = options->color_sgr_cursorline_bg;
+			is_bg    = 1;
 		} else if (!strcasecmp(key, "label") || !strcasecmp(key, "border-label")) {
-			snprintf(options->color_sgr_label, FZY_COLOR_SGR_LEN, "\033[38;5;%dm", ix);
+			sgr_dest = options->color_sgr_label;
 		} else {
 			fprintf(stderr,
 				"Unknown --color key: %s (use fg, bg, fg+, bg+, border, prompt, header, info, label)\n",
 				key);
+			free(spec);
+			exit(EXIT_FAILURE);
+		}
+		if (color_value_to_sgr(val, is_bg, cursor_fg, sgr_dest, FZY_COLOR_SGR_LEN) != 0) {
+			fprintf(stderr, "Unknown color in --color: %s\n", val);
 			free(spec);
 			exit(EXIT_FAILURE);
 		}
@@ -250,7 +327,11 @@ void options_parse(options_t *options, int argc, char *argv[]) {
 				options->init_search = optarg;
 				break;
 			case 'e':
-				options->filter = optarg;
+				/* BSD getopt: "-e=foo" yields optarg "=foo"; GNU uses "foo". */
+				if (optarg && optarg[0] == '=')
+					options->filter = optarg + 1;
+				else
+					options->filter = optarg;
 				break;
 			case 'b':
 				if (optarg) {
