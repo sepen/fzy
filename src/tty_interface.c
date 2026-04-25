@@ -522,6 +522,31 @@ static void draw_match(tty_interface_t *state, const char *choice, int selected,
 			col += 1;
 	}
 	tty_setwrap(tty);
+
+	/* Extend cursorline through the full inner width (up to right padding / border). */
+	unsigned fill_end;
+	if (max_vis_cols < INT_MAX)
+		fill_end = (unsigned)max_vis_cols;
+	else
+		fill_end = (unsigned)tty_getwidth(tty);
+	if (selected && (options->color_sgr_cursorline_bg[0] || options->color_sgr_cursorline_fg[0])) {
+		if ((unsigned)col < fill_end) {
+			tty_setnormal(tty);
+			if (options->color_sgr_cursorline_bg[0])
+				fputs(options->color_sgr_cursorline_bg, tty->fout);
+			if (options->color_sgr_cursorline_fg[0])
+				fputs(options->color_sgr_cursorline_fg, tty->fout);
+			tty_invalidate_fg(tty);
+			for (; (unsigned)col < fill_end; col++)
+				tty_putc(tty, ' ');
+		}
+	} else if (selected) {
+		if ((unsigned)col < fill_end) {
+			for (; (unsigned)col < fill_end; col++)
+				tty_putc(tty, ' ');
+		}
+	}
+
 	tty_setnormal(tty);
 	if (options->color_sgr_bg[0])
 		fputs(options->color_sgr_bg, tty->fout);
