@@ -1065,7 +1065,11 @@ int tty_interface_run(tty_interface_t *state) {
 			if (state->exit >= 0)
 				return state->exit;
 
-			draw(state);
+			/* Avoid a full UI redraw between bytes of a multi-byte key (e.g. arrow
+			 * CSI sequences). draw() is expensive (borders, colors, clear-to-EOL per
+			 * row); redrawing on partial input causes visible flicker and delay. */
+			if (state->input[0] == '\0')
+				draw(state);
 		} while (tty_input_ready(state->tty, state->ambiguous_key_pending ? KEYTIMEOUT : 0, 0));
 
 		if (state->ambiguous_key_pending) {
